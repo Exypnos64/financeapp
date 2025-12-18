@@ -1,0 +1,9 @@
+fastapi==0.115.0           # Web framework (like Express for Node)
+uvicorn[standard]==0.32.0  # ASGI server to run FastAPI (like running `node server.js`)
+plaid-python==28.0.0       # Official Plaid SDK for API calls
+sqlalchemy==2.0.36         # ORM (Object-Relational Mapper) - lets you work with database using Python objects instead of raw SQL
+pymysql==1.1.1             # MySQL driver for SQLAlchemy to actually connect to MySQL
+python-dotenv==1.0.1       # Loads .env file into environment variables
+pydantic==2.10.2           # Data validation (ensures data has correct types/structure)
+pydantic-settings==2.6.1   # Extension for loading settings from .env
+cryptography==44.0.0       # 

@@ -1,0 +1,58 @@
+services:
+  # MySQL Database
+  db:
+    image: mysql:8.0
+    container_name: finance_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-finance_db}
+      MYSQL_USER: ${MYSQL_USER:-financeapp}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-financepass}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # Python FastAPI Backend
+  backend:
+    build: ./backend
+    container_name: finance_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      PLAID_CLIENT_ID: ${PLAID_CLIENT_ID}
+      PLAID_SECRET: ${PLAID_SECRET}
+      PLAID_ENV: ${PLAID_ENV:-sandbox}
+      MYSQL_HOST: db
+      MYSQL_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER:-financeapp}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-financepass}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-finance_db}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Svelte Frontend
+  frontend:
+    build: ./frontend
+    container_name: finance_frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    # volumes:
+    #   - ./frontend:/app
+    #   - /app/node_modules
+    command: pnpm run dev --host
+
+volumes:
+  mysql_data:
