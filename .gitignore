@@ -1,0 +1,45 @@
+# =====================================================================
+# Claude knowledge base is TRACKED. The .claude/ tree (agents, docs,
+# tools) is committed on purpose. Only per-machine scratch and secrets
+# are excluded below.
+# =====================================================================
+.claude/CLAUDE.md_backups/
+.claude/settings.local.json
+
+# Secrets — never commit connection strings, API keys, Plaid creds, etc.
+*.secret.key
+*.env
+.env
+.env.*
+appsettings.*.local.json
+**/secrets.json
+
+# ---------------------------------------------------------------------
+# .NET / C#
+# ---------------------------------------------------------------------
+bin/
+obj/
+*.user
+.vs/
+
+# ---------------------------------------------------------------------
+# Node / SvelteKit
+# ---------------------------------------------------------------------
+node_modules/
+.svelte-kit/
+build/
+.output/
+
+# ---------------------------------------------------------------------
+# Docker / DB
+# ---------------------------------------------------------------------
+# Local DB volume/data dirs, if mounted into the repo
+data/
+*.mdf
+*.ldf
+
+# ---------------------------------------------------------------------
+# OS / editor cruft
+# ---------------------------------------------------------------------
+Thumbs.db
+.DS_Store

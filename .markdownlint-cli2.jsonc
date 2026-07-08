@@ -1,0 +1,16 @@
+{
+    // Lint all markdown, but skip generated/vendored/scratch dirs.
+    "globs": ["**/*.md"],
+    "ignores": [
+        "node_modules/**",
+        "bin/**",
+        "obj/**",
+        ".svelte-kit/**",
+        ".claude/CLAUDE.md_backups/**"
+    ],
+    "config": {
+        "MD013": false, // line-length: this repo uses wide lines; prose follows suit
+        "MD060": false, // table pipe-padding: cosmetic only
+        "MD038": false  // spaces inside code spans: sometimes deliberate
+    }
+}

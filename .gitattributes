@@ -1,0 +1,15 @@
+# Normalize end-of-line handling. Store LF in the index; check out CRLF on
+# Windows so bulk-edit scripts don't have to special-case line endings.
+* text=auto eol=crlf
+
+# Treat common binary assets as binary (no EOL munging, no diff).
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+
+# Database files are binary.
+*.mdf binary
+*.ldf binary
