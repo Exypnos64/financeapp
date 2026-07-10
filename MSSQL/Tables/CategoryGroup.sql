@@ -1,0 +1,6 @@
+CREATE TABLE CategoryGroup(
+    Id INT IDENTITY(1,1),
+    Name NVARCHAR(50) NOT NULL,
+
+    CONSTRAINT PK_CategoryGroup PRIMARY KEY (Id)
+);

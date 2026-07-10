@@ -1,0 +1,7 @@
+CREATE TABLE Merchant (
+    Id INT IDENTITY(1,1),
+    Name NVARCHAR(100) NOT NULL,
+    PicPath NVARCHAR(500) NULL,
+
+    CONSTRAINT PK_Merchant PRIMARY KEY (Id)
+);

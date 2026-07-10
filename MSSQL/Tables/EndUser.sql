@@ -1,0 +1,10 @@
+CREATE TABLE EndUser (
+    Id INT IDENTITY(1,1),
+    Email VARCHAR(254) NOT NULL,
+    PasswordHash VARCHAR(255) NOT NULL,
+    FullName NVARCHAR(100) NOT NULL,
+    PrefName NVARCHAR(50) NOT NULL,
+
+    CONSTRAINT PK_EndUser PRIMARY KEY (Id),
+    CONSTRAINT UQ_EndUser_Email UNIQUE (Email)
+);
