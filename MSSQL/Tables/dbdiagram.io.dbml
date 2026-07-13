@@ -1,0 +1,81 @@
+// Use DBML to define your database structure
+// Docs: https://dbml.dbdiagram.io/docs
+
+TABLE Account {
+  Id INT [pk, NOT NULL]
+  TypeId TINYINT [
+    NOTE: '''
+      1: Savings  
+      2: Checking  
+      3: Credit Card  
+      4: Loan  
+      5: Investments
+    ''',
+    NOT NULL
+  ]
+  Name NVARCHAR(100) [NOT NULL]
+  StartDateUtc DATETIME2 [NOT NULL]
+  IsActive BIT [NOT NULL]
+  StartBalance DECIMAL(19,4) [NOT NULL]
+  LastModifiedUtc DATETIME2 [NOT NULL]
+}
+
+TABLE FinancialTransaction {
+  Id INT [pk, NOT NULL]
+  AccountId INT [NOT NULL, Ref: > Account.Id]
+  MerchantId INT [NOT NULL, Ref: > Merchant.Id]
+  CategoryId INT [NOT NULL, Ref: > Category.Id]
+  Amount DECIMAL(19,4) [NOT NULL]
+  CashBack DECIMAL(19,4) [NULL]
+  UserDateUtc DATETIME2 [NOT NULL]
+  Notes NVARCHAR(1000) [NULL]
+  OriginalStatement NVARCHAR(500) [NULL]
+  OriginalDateUtc DATETIME2 [NULL]
+  LastModifiedUtc DATETIME2 [NOT NULL]
+}
+
+TABLE Merchant {
+  Id INT [pk, NOT NULL]
+  Name NVARCHAR(100) [NOT NULL]
+  PicPath NVARCHAR(500) [NULL]
+}
+
+TABLE Category {
+  Id INT [pk, NOT NULL]
+  GroupId INT [NOT NULL, Ref: > CategoryGroup.Id]
+  Name NVARCHAR(50) [NOT NULL]
+  IconName NVARCHAR(50) [NOT NULL]
+}
+
+TABLE CategoryGroup {
+  Id INT [pk, NOT NULL]
+  Name NVARCHAR(50) [NOT NULL]
+}
+
+TABLE EndUser {
+  Id INT [pk, NOT NULL]
+  Email VARCHAR(254) [NOT NULL, UNIQUE]
+  PasswordHash VARCHAR(255) [NOT NULL]
+  FullName NVARCHAR(100) [NOT NULL]
+  PrefName NVARCHAR(50) [NOT NULL]
+}
+
+TABLE Access {
+  UserId INT [NOT NULL, Ref: > EndUser.Id]
+  AccountId INT [NOT NULL, Ref: > Account.Id]
+  PermissionLevel TINYINT [
+    Note: '''
+      1: Read
+      2: Write
+      3: Owner
+    ''',
+    NOT NULL
+  ]
+  GrantedByUserId INT [NULL, Ref: > EndUser.Id]
+  GrantedAtUtc DATETIME2 [NOT NULL]
+  ExpireAtUtc DATETIME2 [NULL]
+  
+  indexes {
+    (UserId, AccountId) [pk]
+  }
+}
