@@ -117,14 +117,28 @@ with a `.claude/docs/tool-references/<tool>-guide.md` and indexed here.
 
 ## Naming Conventions
 
-*Provisional — the project has no application code yet. These are the community-standard defaults
-we'll start from; firm them up (and record deviations) as real code lands. Deciding conventions is
-itself part of the learning, so revisit rather than treat as fixed.*
+*Firm these up (and record deviations) as real code lands; deciding conventions is itself part of
+the learning, so revisit rather than treat as fixed. **SQL Server** conventions below are now
+settled from the `MSSQL/` schema; **C#/.NET** and **frontend** remain community-standard defaults
+until their code arrives.*
 
 - **C# / .NET**: `PascalCase` for classes, methods, properties, and public members; `camelCase`
   for locals and parameters; `_camelCase` for private fields; interfaces prefixed `I` (`IFoo`).
-- **SQL Server**: to be decided together (table casing, singular vs. plural table names, key
-  naming like `PK_`/`FK_`) — a deliberate design conversation, not assumed here.
+- **SQL Server** (settled — see `MSSQL/`):
+  - *Names*: `PascalCase` tables and columns; **singular** table names (`Account`, `LedgerEntry`).
+    Rename around reserved words (`EndUser` not `User`, `LedgerEntry` not `Transaction`). UTC
+    datetime columns take a `Utc` suffix (`LastModifiedUtc`).
+  - *Keys*: surrogate `Id INT IDENTITY(1,1)`; composite PK for pure junction tables (`Access`).
+  - *Constraints (always named, never auto-named)*: `PK_<Table>`, `FK_<Child>_<Parent>` (add
+    `_<Column>` when a table has multiple FKs to one parent), `UQ_<Table>_<Column>`,
+    `DF_<Table>_<Column>`, `CK_<Table>_<Column>`.
+  - *Types*: money `DECIMAL(19,4)`; timestamps `DATETIME2` stored in **UTC**; booleans `BIT`;
+    `NVARCHAR(n)` for human-entered text, `VARCHAR(n)` for ASCII-only (email, hashes); always
+    explicit `NULL`/`NOT NULL`. Small, fixed, code-owned enums as `TINYINT` + a `CHECK` range
+    constraint (not a lookup table); use a lookup table + FK only when the set is user-editable data.
+  - *Project*: schema-as-code via a `Microsoft.Build.Sql` project, built to a dacpac and published
+    with `sqlpackage`; one file per object under `Tables/`; idempotent seed/reference rows in
+    `Script.PostDeployment.sql` (ensure-exists for sentinels, seed-if-empty for starter content).
 - **SvelteKit / frontend**: to be decided as the UI lands (component file casing, route naming).
 - **Docs / Markdown**: `kebab-case.md` filenames under `.claude/docs/`; wide lines are fine
   (markdownlint's `MD013` is disabled — see `.markdownlint-cli2.jsonc`).

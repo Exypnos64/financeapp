@@ -100,6 +100,17 @@ different presentation. Savings buckets should work under **all budgeting types 
 - **Mobile.** Desktop-first; mobile is a down-the-road concern.
 - **Auto-anticipating recurring transactions and prompting** — nice-to-have after the core
   recurring-expectation feature exists.
+- **Two-tier merchants & categories (public + private, shareable).** The eventual model splits
+  both `Merchant` and `Category` into a **public tier** — a vetted, canonical list (merchants with
+  properly-sourced logos, pulled from a public source) shared by everyone — and a **private tier**
+  each user adds to. Private entries must be **shareable to co-users of a financial account**, so
+  their visibility rule has to *mirror* the account-sharing model. This is deferred deliberately:
+  it's an **additive** change (a nullable owner column where `NULL` = public, plus a visibility
+  rule), so today's single global `Merchant`/`Category` tables don't block it. Build it *alongside*
+  (and reusing the pattern of) the account sharing/ownership work — designing it before that model
+  exists would mean designing the hard sharing logic twice. Implication for now: keep the seeded
+  merchant list minimal/transitional (a public source will supersede it); the seeded default
+  category taxonomy is safe to keep (it becomes the public-tier defaults).
 
 ## Priority ordering (rough)
 
