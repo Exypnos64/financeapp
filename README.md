@@ -27,13 +27,14 @@ are committed to the repo on purpose — Claude sessions are their primary reade
 | Doc | Location | What it holds |
 |---|---|---|
 | This README | `README.md` | What the app is, the stack, the doc index, project structure. |
+| User setup guide | `SETUP.MD` | Software and package requirements; setup commands and files. |
 | Backlog | `TODO.md` | Outstanding work, priority-ordered; done items keep a "Done:" note. |
 | Claude router | `CLAUDE.md` | Always-loaded rules + an annotated index of the `.claude/docs` tree. |
 | Product vision | `.claude/docs/project-vision.md` | Full feature intent: accounts, users/sharing, budgeting, tagging, splitting, reconciliation, savings goals. |
 | Tech stack | `.claude/docs/tech-stack.md` | Technology choices, the staged Docker plan, environment facts. |
 | Development process | `.claude/docs/development-process.md` | How the build proceeds: order of work, backtracking to expect, anticipated problems. |
 | Learning approach | `.claude/docs/learning-approach.md` | The teaching contract that governs how Claude helps on this project. |
-| Setup guide | `CLAUDE-SETUP-GUIDE.md` | How this whole `CLAUDE.md` + `.claude/` setup was built (reusable). |
+| Claude setup guide | `CLAUDE-SETUP-GUIDE.md` | How this whole `CLAUDE.md` + `.claude/` setup was built (reusable). |
 
 ## Project structure
 
