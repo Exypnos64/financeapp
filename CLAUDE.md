@@ -58,6 +58,17 @@ networking per the team lead's advice); Plaid deferred; the owner's starting fam
 environment facts (Windows 11, PowerShell primary, CRLF); and open questions to resolve as we
 build.
 
+### `SETUP.md` (repo root)
+
+**Read when**: standing up the local environment from scratch — installing the toolchain, running
+SQL Server in Docker, and publishing the database — or updating any of those steps.
+
+**Contains**: the human-facing setup runbook. Prerequisites (.NET SDK, Docker Desktop, sqlpackage);
+building the dacpac; creating `db.env` from the committed `db.env.example` (secret stays out of
+git); the once-only `docker run` (afterward `docker start financedb`); publishing via
+`MSSQL\PublishSqlPackage.ps1`; SSMS connection settings (`localhost,1433` + trust the self-signed
+cert); and a verify query. All commands run from the repo root.
+
 ### `.claude/docs/development-process.md`
 
 **Read when**: planning the order of work, scoping a phase, or setting expectations about how the

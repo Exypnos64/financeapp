@@ -25,9 +25,17 @@ container *networking* on day one. Everything else (API, frontend) runs on the h
 containerized DB until the owner is ready to go further.
 
 - **Now**: DB in a container; API and frontend run locally on the host, connecting to the
-  container's published port.
+  container's published port. **Implemented** — the database runs in Docker and the `MSSQL/` schema
+  publishes to it; see [`SETUP.md`](../../SETUP.md) at the repo root for the full stand-up steps.
 - **Later**: containerize the API and frontend and wire up container networking — only once the
   app works and the owner wants to take that step.
+- **Later (owner-initiated learning goal)**: stand the app up on **Kubernetes** as a deliberate
+  ops/deployment learning exercise. Kubernetes does *not* replace Docker Desktop — it's an
+  orchestrator that layers on top of a container runtime (Docker Desktop even bundles a single-node
+  cluster). For a single dev-box database it's overkill (pods, deployments, services, PVCs,
+  manifests, `kubectl` to learn before a table ships), so it stays deferred until the app exists
+  and the owner wants to learn deployment. The owner raised interest 2026-07-13; parked here so we
+  don't lose the thread.
 
 Do **not** jump ahead to multi-container networking, compose orchestration of the whole app, or
 Kubernetes-style concerns unprompted.
@@ -54,10 +62,19 @@ honest ones exist, and don't assume any prior web-dev or DB-design practice.
   lands, record concrete setup steps (SDK versions, connection strings pattern, how to run each
   piece) in dedicated docs under `.claude/docs/` and index them in `CLAUDE.md`.
 
+## Decisions made (resolved as we built)
+
+- **SQL Server image/edition**: `mcr.microsoft.com/mssql/server:2022-CU14-ubuntu-22.04` — the
+  container's default **Developer** edition. Runs on the WSL2 Linux backend.
+- **Secret handling (DB)**: the SA password lives in a gitignored `db.env`, with a committed
+  `db.env.example` template. Passed to the container via `docker run --env-file`, and read into a
+  PowerShell variable (never a literal) for `sqlpackage`. App-level connection-string secrets
+  (user-secrets / env vars) are deferred until the API lands.
+- **.NET version**: **.NET 10** (see `SETUP.md`). Also enables single-file "file-based apps"
+  (`dotnet run scratch.cs`) for learning snippets — see `learning-approach.md`.
+
 ## Open questions to resolve as we build
 
-- SQL Server edition/image to run in Docker (Developer/Express) and how connection strings are
-  managed without committing secrets.
-- .NET version and project layout (single API project vs. solution with service projects).
+- .NET **project layout**: single API project vs. a solution with separate service projects.
 - SvelteKit data-loading approach for talking to the .NET API.
 - Whether Plaid's free tier can actually serve a single personal user's needs (revisit later).

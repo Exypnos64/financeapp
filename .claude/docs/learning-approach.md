@@ -61,6 +61,20 @@ reasoning behind it.
   config, `.gitignore`, this Claude setup, etc. can be produced normally — the learning target is
   the finance app's code (C#/.NET, SQL, SvelteKit, Docker).
 
+## Running code to learn or test a concept
+
+When a snippet is worth *running* — to demonstrate C# behavior, let the owner test an idea, or
+check "what does this actually do?" — use **.NET 10 file-based apps**: a single `.cs` file run with
+`dotnet run scratch.cs`, no project/`.csproj` scaffold. It's the C# analog of `python foo.py`, and
+it fits the "small illustrative snippet" rule above without the ceremony of a full project. The
+environment already has .NET 10 (see `SETUP.md`). For interactive SQL against the dev database, use
+an SSMS query window against `localhost,1433` (see [`tech-stack.md`](tech-stack.md) and `SETUP.md`).
+
+Do **not** reach for Polyglot Notebooks / .NET Interactive: both were deprecated and the repo
+archived in April 2026 (no fixes, including security). Microsoft's own recommended replacement for
+the scratchpad use case is file-based apps. This still respects "guide, don't do" — running throwaway
+code to illustrate a concept is teaching, not writing the app's code for the owner.
+
 ## Why this exists
 
 The owner has real programming ability but was, like many, taught theory without practice. Handing
