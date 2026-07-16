@@ -21,11 +21,15 @@ Be sure to open Docker Desktop after it's installed.
 
 ### 3. Ensure you have sqlpackage installed
 
-`dotnet tool install --global Microsoft.SqlPackage`
+```powershell
+dotnet tool install --global Microsoft.SqlPackage
+```
 
 ### 4. Build the dacpac
 
-`dotnet build MSSQL\FinanceDb.sqlproj`
+```powershell
+dotnet build MSSQL\FinanceDb.sqlproj
+```
 
 ### 5. Create your environment password
 

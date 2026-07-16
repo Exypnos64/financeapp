@@ -65,8 +65,8 @@ reasoning behind it.
 
 When a snippet is worth *running* — to demonstrate C# behavior, let the owner test an idea, or
 check "what does this actually do?" — use **.NET 10 file-based apps**: a single `.cs` file run with
-`dotnet run scratch.cs`, no project/`.csproj` scaffold. It's the C# analog of `python foo.py`, and
-it fits the "small illustrative snippet" rule above without the ceremony of a full project. The
+`dotnet run --file scratch.cs`, no project/`.csproj` scaffold. It's the C# analog of `python foo.py`,
+and it fits the "small illustrative snippet" rule above without the ceremony of a full project. The
 environment already has .NET 10 (see `SETUP.md`). For interactive SQL against the dev database, use
 an SSMS query window against `localhost,1433` (see [`tech-stack.md`](tech-stack.md) and `SETUP.md`).
 
