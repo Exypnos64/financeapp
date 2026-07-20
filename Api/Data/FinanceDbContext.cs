@@ -1,6 +1,5 @@
 namespace Api.Data;
 
-using System.ComponentModel.DataAnnotations.Schema;
 using Api.Models;
 using Microsoft.EntityFrameworkCore;
 
