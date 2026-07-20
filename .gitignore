@@ -34,7 +34,7 @@ build/
 # Docker / DB
 # ---------------------------------------------------------------------
 # Local DB volume/data dirs, if mounted into the repo
-data/
+/data/
 *.mdf
 *.ldf
 

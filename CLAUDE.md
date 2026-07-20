@@ -58,6 +58,18 @@ networking per the team lead's advice); Plaid deferred; the owner's starting fam
 environment facts (Windows 11, PowerShell primary, CRLF); and open questions to resolve as we
 build.
 
+### `.claude/docs/api.md`
+
+**Read when**: working on anything in `Api/` — the .NET web API, EF Core entities/context,
+endpoints, connection strings, or NuGet packages.
+
+**Contains**: the API layer as built — single-project layout (`Api/`, minimal APIs, .NET 10); how
+to run it (ports, `curl`/`Invoke-RestMethod`); **EF Core in read/map mode with the dacpac as the
+sole schema authority (never generate EF migrations)**; entity/context conventions (namespaces,
+one file per entity, nullability mirrors the schema, singular `DbSet`s, composite-key config, map
+`DbSet`s per slice, DTOs deferred); connection-string + User-Secrets handling and the `,`-vs-`;`
+and `TrustServerCertificate` gotchas; and NuGet audit/pin notes.
+
 ### `SETUP.md` (repo root)
 
 **Read when**: standing up the local environment from scratch — installing the toolchain, running
@@ -129,12 +141,15 @@ with a `.claude/docs/tool-references/<tool>-guide.md` and indexed here.
 ## Naming Conventions
 
 *Firm these up (and record deviations) as real code lands; deciding conventions is itself part of
-the learning, so revisit rather than treat as fixed. **SQL Server** conventions below are now
-settled from the `MSSQL/` schema; **C#/.NET** and **frontend** remain community-standard defaults
-until their code arrives.*
+the learning, so revisit rather than treat as fixed. **SQL Server** conventions below are settled
+from the `MSSQL/` schema and **C#/.NET** conventions are now settling from the `Api/` project (see
+`api.md`); **frontend** remains community-standard defaults until its code arrives.*
 
-- **C# / .NET**: `PascalCase` for classes, methods, properties, and public members; `camelCase`
-  for locals and parameters; `_camelCase` for private fields; interfaces prefixed `I` (`IFoo`).
+- **C# / .NET** (settling — see `Api/` and [`api.md`](.claude/docs/api.md)): `PascalCase` for
+  classes, methods, properties, and public members; `camelCase` for locals and parameters;
+  `_camelCase` for private fields; interfaces prefixed `I` (`IFoo`). File-scoped `namespace`
+  matching the folder path (`Api.Models`, `Api.Data`); one public type per file. EF entities mirror
+  their table one-for-one, including column nullability.
 - **SQL Server** (settled — see `MSSQL/`):
   - *Names*: `PascalCase` tables and columns; **singular** table names (`Account`, `LedgerEntry`).
     Rename around reserved words (`EndUser` not `User`, `LedgerEntry` not `Transaction`). UTC

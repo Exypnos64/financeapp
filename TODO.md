@@ -18,7 +18,10 @@ what was produced (the code/doc/artifact). That turns this file into a lightweig
   start (keep "financial account" vs. "user account" distinct). Decide SQL naming conventions.
 - [ ] **Docker: containerize SQL Server** — DB only for now; API/frontend stay on the host. Defer
   container networking (team lead's guidance).
-- [ ] **.NET API skeleton** — stand up the C# web API and connect it to the containerized DB.
+- [x] **.NET API skeleton** — stand up the C# web API and connect it to the containerized DB.
+  Done: `Api/` project (single project, minimal APIs, .NET 10); EF Core read/map against the dacpac
+  schema; `GET /accounts` returns `Account` rows from the containerized DB as JSON. See
+  `.claude/docs/api.md`.
 - [ ] **SvelteKit frontend skeleton** — desktop-first; talk to the .NET API.
 - [ ] **Show transaction data** end-to-end (DB → API → UI).
 
