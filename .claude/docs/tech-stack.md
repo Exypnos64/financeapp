@@ -68,13 +68,17 @@ honest ones exist, and don't assume any prior web-dev or DB-design practice.
   container's default **Developer** edition. Runs on the WSL2 Linux backend.
 - **Secret handling (DB)**: the SA password lives in a gitignored `db.env`, with a committed
   `db.env.example` template. Passed to the container via `docker run --env-file`, and read into a
-  PowerShell variable (never a literal) for `sqlpackage`. App-level connection-string secrets
-  (user-secrets / env vars) are deferred until the API lands.
+  PowerShell variable (never a literal) for `sqlpackage`. App-level connection-string secrets are
+  handled via **.NET User Secrets** in development (see the API-layer decision below and `api.md`).
 - **.NET version**: **.NET 10** (see `SETUP.md`). Also enables single-file "file-based apps"
-  (`dotnet run scratch.cs`) for learning snippets — see `learning-approach.md`.
+  (`dotnet run --file scratch.cs`) for learning snippets — see `learning-approach.md`.
+- **API layer** (skeleton landed — full detail in [`api.md`](api.md)): a **single** `Api/` project
+  (minimal APIs, not controllers), not a multi-project solution. Data access is **EF Core in
+  read/map mode** — the `MSSQL/` dacpac stays the sole schema authority and **EF migrations are
+  never used**. App connection-string secret lives in **.NET User Secrets** for development
+  (`ConnectionStrings:DefaultConnection`), sourced from an env var for deployment later.
 
 ## Open questions to resolve as we build
 
-- .NET **project layout**: single API project vs. a solution with separate service projects.
 - SvelteKit data-loading approach for talking to the .NET API.
 - Whether Plaid's free tier can actually serve a single personal user's needs (revisit later).
