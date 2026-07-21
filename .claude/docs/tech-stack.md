@@ -58,9 +58,10 @@ honest ones exist, and don't assume any prior web-dev or DB-design practice.
 - **OS**: Windows 11. Primary shell is **PowerShell**; a Bash tool is also available (POSIX
   syntax). Windows path separators and CRLF apply — see `.gitattributes`.
 - **Working directory**: `C:\DevOps\financeapp`.
-- This is early days: **no application code exists yet** at the time of writing. As the stack
-  lands, record concrete setup steps (SDK versions, connection strings pattern, how to run each
-  piece) in dedicated docs under `.claude/docs/` and index them in `CLAUDE.md`.
+- The foundation stack has landed: the DB (`MSSQL/`, containerized), the .NET API (`Api/`), and the
+  SvelteKit frontend (`SvelteKit/`). As each new piece lands, record concrete setup steps (SDK
+  versions, connection-string pattern, how to run each piece) in dedicated docs under
+  `.claude/docs/` and index them in `CLAUDE.md`.
 
 ## Decisions made (resolved as we built)
 
@@ -77,6 +78,12 @@ honest ones exist, and don't assume any prior web-dev or DB-design practice.
   read/map mode** — the `MSSQL/` dacpac stays the sole schema authority and **EF migrations are
   never used**. App connection-string secret lives in **.NET User Secrets** for development
   (`ConnectionStrings:DefaultConnection`), sourced from an env var for deployment later.
+- **Frontend layer** (skeleton landed — full detail in [`frontend.md`](frontend.md)): a
+  **SvelteKit** app in `SvelteKit/`, scaffolded with the `sv` CLI (minimal template),
+  **TypeScript**, Svelte 5, Vite. **Package manager: npm** (yarn Classic is frozen; the owner will
+  learn yarn on the team project; pnpm is the modern-fast alternative if ever wanted). Add-ons kept
+  minimal (**prettier + eslint**); **Tailwind and testing deferred** deliberately. Renders and
+  hot-reloads (`npm run dev`); does not talk to the API yet.
 
 ## Open questions to resolve as we build
 

@@ -22,7 +22,10 @@ what was produced (the code/doc/artifact). That turns this file into a lightweig
   Done: `Api/` project (single project, minimal APIs, .NET 10); EF Core read/map against the dacpac
   schema; `GET /accounts` returns `Account` rows from the containerized DB as JSON. See
   `.claude/docs/api.md`.
-- [ ] **SvelteKit frontend skeleton** — desktop-first; talk to the .NET API.
+- [x] **SvelteKit frontend skeleton** — desktop-first; talk to the .NET API.
+  Done: `SvelteKit/` app (`sv` CLI minimal template, TypeScript, Svelte 5, Vite; npm; prettier +
+  eslint). Renders the default page with working HMR via `npm run dev`; does not call the API yet.
+  See `.claude/docs/frontend.md`. (Talking to the API is the next item.)
 - [ ] **Show transaction data** end-to-end (DB → API → UI).
 
 ## Core features

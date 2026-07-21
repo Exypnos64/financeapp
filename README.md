@@ -27,12 +27,14 @@ are committed to the repo on purpose — Claude sessions are their primary reade
 | Doc | Location | What it holds |
 |---|---|---|
 | This README | `README.md` | What the app is, the stack, the doc index, project structure. |
-| User setup guide | `SETUP.MD` | Software and package requirements; setup commands and files. |
+| User setup guide | `SETUP.md` | Software and package requirements; setup commands and files. |
 | Backlog | `TODO.md` | Outstanding work, priority-ordered; done items keep a "Done:" note. |
 | Claude router | `CLAUDE.md` | Always-loaded rules + an annotated index of the `.claude/docs` tree. |
 | Product vision | `.claude/docs/project-vision.md` | Full feature intent: accounts, users/sharing, budgeting, tagging, splitting, reconciliation, savings goals. |
 | Tech stack | `.claude/docs/tech-stack.md` | Technology choices, the staged Docker plan, environment facts. |
 | Development process | `.claude/docs/development-process.md` | How the build proceeds: order of work, backtracking to expect, anticipated problems. |
+| API layer | `.claude/docs/api.md` | The .NET API as built: layout, EF Core read/map mode, endpoints, connection string + secrets. |
+| Frontend layer | `.claude/docs/frontend.md` | The SvelteKit app as built: layout, tooling, how to run it, conventions, styling/testing decisions. |
 | Learning approach | `.claude/docs/learning-approach.md` | The teaching contract that governs how Claude helps on this project. |
 | Claude setup guide | `CLAUDE-SETUP-GUIDE.md` | How this whole `CLAUDE.md` + `.claude/` setup was built (reusable). |
 
@@ -43,25 +45,33 @@ financeapp/
 ├── CLAUDE.md                 # Claude router: rules + reference index
 ├── CLAUDE-SETUP-GUIDE.md     # How the Claude setup works (reusable guide)
 ├── README.md                 # This file
+├── SETUP.md                  # Local-environment stand-up runbook
 ├── TODO.md                   # Backlog
+├── db.env.example            # Template for the gitignored db.env (SA password)
 ├── .gitignore  .gitattributes  .markdownlint-cli2.jsonc
+├── MSSQL/                    # SQL Server schema-as-code (dacpac project, one file per object)
+├── Api/                      # .NET web API (minimal APIs, EF Core read/map against the dacpac)
+├── SvelteKit/                # SvelteKit frontend (TypeScript, Vite)
 └── .claude/                  # Claude-facing setup (committed)
     ├── docs/                 # On-demand reference docs
     │   ├── project-vision.md
     │   ├── tech-stack.md
-    │   └── learning-approach.md
+    │   ├── development-process.md
+    │   ├── learning-approach.md
+    │   ├── api.md
+    │   └── frontend.md
     ├── agents/               # Custom subagents (none yet — see README there)
+    ├── tools/                # Deterministic helper scripts (none yet)
     ├── notes/                # Disposable session scratch
     └── settings.local.json   # Per-machine permissions (gitignored)
 ```
 
-*Application code (the .NET solution, the SvelteKit app, the DB/Docker setup) does not exist yet —
-it will be added here as the project gets built.*
-
 ## Status
 
-Just getting started. No application code yet; the current commit establishes the project
-documentation and Claude Code working setup. See `TODO.md` for what's next.
+The foundation stack is in place: the SQL Server schema (`MSSQL/`) publishes to a Docker container,
+the .NET API (`Api/`) serves `GET /accounts` from it, and the SvelteKit frontend (`SvelteKit/`)
+renders as a skeleton. Next up is the first **vertical slice** — wiring the frontend to the API so
+account data flows DB → API → screen end-to-end. See `TODO.md` for the full backlog.
 
 > A `HANDOFF.md` (a dated "picking this up" snapshot) will be added if/when the project reaches a
 > point where someone else — or a future self after a long gap — needs to take it over.
