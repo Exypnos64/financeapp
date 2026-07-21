@@ -70,6 +70,19 @@ one file per entity, nullability mirrors the schema, singular `DbSet`s, composit
 `DbSet`s per slice, DTOs deferred); connection-string + User-Secrets handling and the `,`-vs-`;`
 and `TrustServerCertificate` gotchas; and NuGet audit/pin notes.
 
+### `.claude/docs/frontend.md`
+
+**Read when**: working on anything in `SvelteKit/` — the SvelteKit app, routes/pages, components,
+data loading against the API, styling, or frontend tooling (npm scripts, Vite, prettier/eslint).
+
+**Contains**: the frontend layer as built — single-app layout (`SvelteKit/`, `sv` CLI minimal
+template, TypeScript, Svelte 5, Vite); package-manager choice (**npm**; yarn/pnpm rationale);
+how to run it (`npm run dev`/`build`/`check`/`lint`/`format`, the `npm run` front-door and the
+`svelte-check`-not-`tsc` gotcha); filesystem routing and the `+`-prefixed special files;
+conventions (TS everywhere, `camelCase`/`PascalCase`, TS inference, **Svelte 5 `$state` runes for
+reactivity**, scoped styles); **plain-CSS-before-Tailwind** and **testing-deferred** decisions;
+and the open first-slice work (data loading against `/accounts`, CORS).
+
 ### `SETUP.md` (repo root)
 
 **Read when**: standing up the local environment from scratch — installing the toolchain, running
@@ -143,7 +156,8 @@ with a `.claude/docs/tool-references/<tool>-guide.md` and indexed here.
 *Firm these up (and record deviations) as real code lands; deciding conventions is itself part of
 the learning, so revisit rather than treat as fixed. **SQL Server** conventions below are settled
 from the `MSSQL/` schema and **C#/.NET** conventions are now settling from the `Api/` project (see
-`api.md`); **frontend** remains community-standard defaults until its code arrives.*
+`api.md`); **frontend** conventions are now settling from the `SvelteKit/` project (see
+`frontend.md`).*
 
 - **C# / .NET** (settling — see `Api/` and [`api.md`](.claude/docs/api.md)): `PascalCase` for
   classes, methods, properties, and public members; `camelCase` for locals and parameters;
@@ -165,6 +179,11 @@ from the `MSSQL/` schema and **C#/.NET** conventions are now settling from the `
   - *Project*: schema-as-code via a `Microsoft.Build.Sql` project, built to a dacpac and published
     with `sqlpackage`; one file per object under `Tables/`; idempotent seed/reference rows in
     `Script.PostDeployment.sql` (ensure-exists for sentinels, seed-if-empty for starter content).
-- **SvelteKit / frontend**: to be decided as the UI lands (component file casing, route naming).
+- **SvelteKit / frontend** (settling — see `SvelteKit/` and [`frontend.md`](.claude/docs/frontend.md)):
+  **TypeScript** everywhere (`<script lang="ts">`); `camelCase` for variables/functions,
+  `PascalCase` for components and types; let TS infer obvious literals. Reactivity is explicit via
+  **Svelte 5 runes** — mutable UI state uses `$state()`, unchanging values stay `const`. Routing is
+  filesystem-based; `+`-prefixed files (`+page`, `+layout`) are SvelteKit-special. Component
+  `<style>` is scoped by default. Plain CSS before Tailwind.
 - **Docs / Markdown**: `kebab-case.md` filenames under `.claude/docs/`; wide lines are fine
   (markdownlint's `MD013` is disabled — see `.markdownlint-cli2.jsonc`).

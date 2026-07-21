@@ -79,3 +79,53 @@ You can run the following selects to ensure that setup was successful. There sho
 SELECT * FROM dbo.CategoryGroup;
 SELECT * FROM dbo.Category;
 ```
+
+---
+
+> The steps above stand up the database. The steps below set up and run the SvelteKit frontend. They
+> don't depend on the database being up — but the app won't show real data until the frontend is
+> wired to the API (that arrives with the first feature slice).
+
+### 10. Ensure you have Node.js installed
+
+The frontend runs on Node.js (which also provides `npm`). Install the current LTS:
+
+```powershell
+winget install OpenJS.NodeJS.LTS
+```
+
+Confirm it's available (open a fresh terminal first so `PATH` picks it up):
+
+```powershell
+node --version
+npm --version
+```
+
+### 11. Install the frontend dependencies
+
+Dependencies aren't committed (`node_modules/` is gitignored), so restore them on a fresh clone.
+Run from the `SvelteKit/` directory:
+
+```powershell
+cd SvelteKit
+npm install
+```
+
+### 12. Run the dev server
+
+```powershell
+npm run dev
+```
+
+Vite prints a local URL (usually `http://localhost:5173`) — open it in your browser. The dev server
+watches your files and hot-reloads on save; press `Ctrl+C` to stop it.
+
+Other useful scripts (all run from `SvelteKit/`):
+
+```powershell
+npm run build     # produce a production bundle
+npm run preview   # serve the production build locally
+npm run check     # type-check (.svelte files included) via svelte-check
+npm run lint      # prettier --check + eslint
+npm run format    # auto-format with prettier
+```
