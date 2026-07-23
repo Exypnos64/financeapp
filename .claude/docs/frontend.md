@@ -80,16 +80,32 @@ npm run format    # prettier --write (auto-format)
   Selenium; Playwright manages its own browser binaries, no separate driver) are the intended tools
   when that time comes.
 
-## Talking to the API (open — first vertical slice)
+## Talking to the API
 
-- Not wired yet. The **first vertical slice** is making a page fetch `GET /accounts` from the .NET
-  API and render it (DB → API → screen, end-to-end).
-- The **SvelteKit data-loading approach** is still an open question (`load` functions in `+page.ts`
-  vs. client-side `fetch` in the component) — see `tech-stack.md`. Also expect to deal with **CORS**
-  (the API on `http://localhost:5046`, the dev server on `~5173` — different origins).
+The **first vertical slice** is done: the `/accounts` page fetches `GET /accounts` from the .NET
+API and renders the rows (DB → API → screen, end-to-end). What settled:
+
+- **Data-loading approach: a universal `load` function in `+page.ts`** (not client-side `fetch` in
+  the component). It runs on the server during SSR *or* in the browser on client-side navigation,
+  and receives SvelteKit's **wrapped `fetch`** (a superset of the standard `fetch` — handles
+  relative URLs and SSR). Whatever object `load` returns reaches the component as the `data` prop;
+  a **throw** in `load` (e.g. a rejected fetch) fails the whole page to SvelteKit's error page.
+- **Typing**: annotate `load` with `PageLoad` from the generated `./$types` (SvelteKit writes those
+  per-route under `.svelte-kit/` — run `npm run dev` once if the editor can't find them). Type the
+  parsed JSON as an app shape (`Account` in `src/lib/types.ts`, re-exported from `$lib`). The page
+  component reads props via `let { data }: PageProps = $props()` (also from `./$types`).
+- **API JSON gotchas** when writing response types: .NET serializes properties as **camelCase**
+  (`Name` → `name`) and `DateTime` as an **ISO-8601 string** (JSON has no date type);
+  `decimal`/`int`/`byte` all map to TS `number` (watch `decimal`→`number` precision for money later).
+- **CORS is handled on the API side** (see `api.md`); the frontend needs no CORS code.
+- **Still hardcoded** (dev convenience — revisit with config when a second environment exists): the
+  API base URL (`http://localhost:5046`) in `load`.
 
 ## Current state
 
-- Skeleton complete: the default SvelteKit page renders and HMR works. Verified via `npm run dev`.
-- Does **not** call the API yet, has no styling, no routes beyond `/`.
-- Next: the first vertical slice — `/accounts` fetching from the API.
+- **First vertical slice complete**: `/accounts` (`src/routes/accounts/+page.ts` + `+page.svelte`)
+  fetches `GET /accounts` and renders the rows in a plain HTML table. Verified end-to-end against
+  the containerized DB and running API.
+- `/` is still the default skeleton page; no styling yet (plain table, per plain-CSS-first).
+- Next: display formatting (money, dates, the raw ISO timestamps/booleans currently shown as-is),
+  then further slices; move the hardcoded dev URL to config when a second environment appears.
