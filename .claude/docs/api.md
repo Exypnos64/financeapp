@@ -86,6 +86,20 @@ dotnet build        # compile-check only
     the driver encrypts by default — same as SSMS's "Trust server certificate" checkbox.
   - Config is read once at **startup** — restart `dotnet run` after changing a secret.
 
+## CORS
+
+- The browser blocks the SvelteKit dev server (`http://localhost:5173`) from *reading* API responses
+  at a different origin (`http://localhost:5046`) unless the API opts in — a browser-enforced
+  same-origin-policy protection that only the server can relax (via an `Access-Control-Allow-Origin`
+  response header).
+- Wired in `Program.cs` the usual two-step way: **register** a named policy with
+  `builder.Services.AddCors(...)` (a `WithOrigins("http://localhost:5173")` policy), then **use** it
+  with `app.UseCors(<policy>)` in the pipeline — placed after `UseHttpsRedirection` and **before** the
+  endpoint mappings so the header is attached to the response on the way out. Pipeline **order**
+  matters, and config is read once at startup (same restart gotcha as the connection string).
+- **The allowed origin is hardcoded to the dev URL** — revisit via config when a real deployment
+  origin exists.
+
 ## NuGet notes
 
 - Packages live in `Api/Api.csproj`. `dotnet list package --vulnerable --include-transitive` and
@@ -96,7 +110,10 @@ dotnet build        # compile-check only
 
 ## Current state
 
-- Skeleton complete: `GET /accounts` returns `Account` rows from the containerized DB as JSON.
+- `GET /accounts` returns `Account` rows from the containerized DB as JSON, now consumed
+  end-to-end by the SvelteKit `/accounts` page (first vertical slice — see `frontend.md`). CORS is
+  configured to allow the dev frontend origin.
 - Only `Account` is exercised end-to-end; the other six entities exist as files and are mapped but
   not yet driven by an endpoint.
-- Next: the SvelteKit frontend skeleton that calls `/accounts`.
+- Next: further slices (more endpoints/entities); introduce DTOs when an endpoint would otherwise
+  leak internal fields.

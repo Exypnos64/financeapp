@@ -42,13 +42,23 @@ Make a copy of `db.env.example` and change the password to your own. It needs to
 
 ### 6. Setup Docker
 
-This is only to be run once. Afterward use `docker start financedb`; `start` can be changed out for `stop` and `restart`.
+This is only to be run once, and `-d` leaves the container running afterward. In later sessions you start it again with the next step (`start` can be swapped for `stop` or `restart` to control the container).
 
 ```powershell
 docker run -d --name financedb -e "ACCEPT_EULA=Y" --env-file db.env -p 1433:1433 -v financedb-data:/var/opt/mssql mcr.microsoft.com/mssql/server:2022-CU14-ubuntu-22.04
 ```
 
-### 7. Publish the package to the Docker server
+### 7. Start the database server
+
+Step 6 already started the container on first-time setup, so you can skip ahead. Every session after that — a new terminal, after a reboot, or any time the container is stopped — start it before publishing or connecting:
+
+```powershell
+docker start financedb
+```
+
+The publish script and SSMS are just clients: they connect to a server that's already listening on `localhost,1433`, so the container has to be running first. Confirm it's up with `docker ps` (a stopped container won't be listed; `docker ps -a` shows it regardless). Give the SQL Server engine a few seconds after starting before it accepts connections.
+
+### 8. Publish the package to the Docker server
 
 ```powershell
 .\MSSQL\PublishSqlPackage.ps1
@@ -61,7 +71,7 @@ The first command in the script stores your password in an environment variable 
 > If you are unable to run the script, you can copy and paste the commands manually or run the following to enable running powershell scripts on your system:  
 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
 
-### 8. Open MSSQL
+### 9. Open MSSQL
 
 Connect to the server with the following settings:
     - Server name: localhost,1433
@@ -71,7 +81,7 @@ Connect to the server with the following settings:
     - Encryption: Mandatory
     - Trust server certificate: True
 
-### 9. Verify everything is up and running
+### 10. Verify everything is up and running
 
 You can run the following selects to ensure that setup was successful. There should be data populating both of these tables from `MSSQL\Script.PostDeployment.sql`.
 
@@ -82,11 +92,13 @@ SELECT * FROM dbo.Category;
 
 ---
 
-> The steps above stand up the database. The steps below set up and run the SvelteKit frontend. They
-> don't depend on the database being up — but the app won't show real data until the frontend is
-> wired to the API (that arrives with the first feature slice).
+> The steps above stand up the database. The steps below set up and run the SvelteKit frontend. The
+> dev server itself starts and hot-reloads without the database or API. But the frontend now talks
+> to the .NET API (the first feature slice), so to see **real data** — e.g. the `/accounts` page —
+> the database must be up **and** the API running (`dotnet run` from `Api/`; see
+> [`.claude/docs/api.md`](.claude/docs/api.md)).
 
-### 10. Ensure you have Node.js installed
+### 11. Ensure you have Node.js installed
 
 The frontend runs on Node.js (which also provides `npm`). Install the current LTS:
 
@@ -101,7 +113,7 @@ node --version
 npm --version
 ```
 
-### 11. Install the frontend dependencies
+### 12. Install the frontend dependencies
 
 Dependencies aren't committed (`node_modules/` is gitignored), so restore them on a fresh clone.
 Run from the `SvelteKit/` directory:
@@ -111,7 +123,7 @@ cd SvelteKit
 npm install
 ```
 
-### 12. Run the dev server
+### 13. Run the dev server
 
 ```powershell
 npm run dev
@@ -119,6 +131,10 @@ npm run dev
 
 Vite prints a local URL (usually `http://localhost:5173`) — open it in your browser. The dev server
 watches your files and hot-reloads on save; press `Ctrl+C` to stop it.
+
+With the database up and the API running (see the note above), browse to `/accounts`
+(`http://localhost:5173/accounts`) to see live account data fetched from the API — the first
+end-to-end vertical slice.
 
 Other useful scripts (all run from `SvelteKit/`):
 

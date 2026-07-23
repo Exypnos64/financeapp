@@ -87,5 +87,6 @@ honest ones exist, and don't assume any prior web-dev or DB-design practice.
 
 ## Open questions to resolve as we build
 
-- SvelteKit data-loading approach for talking to the .NET API.
+- ~~SvelteKit data-loading approach for talking to the .NET API.~~ **Resolved**: universal `load`
+  function in `+page.ts` (see `frontend.md`).
 - Whether Plaid's free tier can actually serve a single personal user's needs (revisit later).
