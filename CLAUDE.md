@@ -66,8 +66,9 @@ endpoints, connection strings, or NuGet packages.
 **Contains**: the API layer as built — single-project layout (`Api/`, minimal APIs, .NET 10); how
 to run it (ports, `curl`/`Invoke-RestMethod`); **EF Core in read/map mode with the dacpac as the
 sole schema authority (never generate EF migrations)**; entity/context conventions (namespaces,
-one file per entity, nullability mirrors the schema, singular `DbSet`s, composite-key config, map
-`DbSet`s per slice, DTOs deferred); connection-string + User-Secrets handling and the `,`-vs-`;`
+one file per entity in `Api/Entities/`, nullability mirrors the schema, singular `DbSet`s,
+composite-key config, map `DbSet`s per slice, navigation properties, and DTOs/projections in
+`Api/Contracts/`); connection-string + User-Secrets handling and the `,`-vs-`;`
 and `TrustServerCertificate` gotchas; and NuGet audit/pin notes.
 
 ### `.claude/docs/frontend.md`
@@ -162,8 +163,11 @@ from the `MSSQL/` schema and **C#/.NET** conventions are now settling from the `
 - **C# / .NET** (settling — see `Api/` and [`api.md`](.claude/docs/api.md)): `PascalCase` for
   classes, methods, properties, and public members; `camelCase` for locals and parameters;
   `_camelCase` for private fields; interfaces prefixed `I` (`IFoo`). File-scoped `namespace`
-  matching the folder path (`Api.Models`, `Api.Data`); one public type per file. EF entities mirror
-  their table one-for-one, including column nullability.
+  matching the folder path (`Api.Entities`, `Api.Data`, `Api.Contracts`); one public type per file
+  (pragmatic exception: a small cluster of tightly-related DTOs may share a file named for the
+  concept). EF entities (`Api/Entities/`) mirror their table one-for-one, including column
+  nullability; DTOs (`Api/Contracts/`, suffixed `…Dto`/`…Li`) are the API's response shapes, kept
+  distinct from entities and built per-slice.
 - **SQL Server** (settled — see `MSSQL/`):
   - *Names*: `PascalCase` tables and columns; **singular** table names (`Account`, `LedgerEntry`).
     Rename around reserved words (`EndUser` not `User`, `LedgerEntry` not `Transaction`). UTC
