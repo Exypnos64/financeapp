@@ -1,6 +1,6 @@
 namespace Api.Data;
 
-using Api.Models;
+using Api.Entities;
 using Microsoft.EntityFrameworkCore;
 
 public class FinanceDbContext : DbContext

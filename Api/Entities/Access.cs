@@ -1,4 +1,4 @@
-namespace Api.Models;
+namespace Api.Entities;
 
 using Microsoft.EntityFrameworkCore;
 
