@@ -17,7 +17,8 @@ as the API grows.
   a domain/data separation earns its keep.
 - **Minimal APIs** over controllers for the same reason: less ceremony, closest to the owner's
   FastAPI mental model. Endpoints are mapped in `Program.cs`.
-- Folders: `Api/Models/` (entities), `Api/Data/` (the `DbContext`).
+- Folders: `Api/Entities/` (EF entities — POCOs mirroring tables), `Api/Data/` (the `DbContext`),
+  `Api/Contracts/` (DTOs — the API's outward-facing response shapes).
 
 ## Running it
 
@@ -47,9 +48,10 @@ dotnet build        # compile-check only
 
 ### Entity + context conventions
 
-- **Entities** live in `Api/Models/`, namespace `Api.Models`, one class per file (mirrors the
+- **Entities** live in `Api/Entities/`, namespace `Api.Entities`, one class per file (mirrors the
   `MSSQL/Tables/` one-file-per-object convention). Each entity is a plain POCO whose properties
-  mirror its table's columns.
+  mirror its table's columns. (Folder was renamed from `Models/` → `Entities/`: these classes are
+  EF *entities*, and the name should say so rather than the generic MVC "Models".)
 - **Nullability must match the schema exactly.** A `NULL` column → a nullable property (`int?`,
   `DateTime?`, `decimal?`, `string?`, no `required`); a `NOT NULL` column → non-nullable (and
   `required` is fine for `string`). Mismatches surface as materialization errors at read time, not
@@ -64,8 +66,34 @@ dotnet build        # compile-check only
   register entities that are fully, correctly modeled. Junction tables with **composite keys**
   (e.g. `Access`) need an explicit `[PrimaryKey(nameof(A), nameof(B))]` — EF can't infer composite
   keys by convention.
-- Entities are currently returned **directly** from endpoints. This is a known skeleton shortcut;
-  introduce **DTOs** when an endpoint would otherwise leak internal fields (e.g. `EndUser.PasswordHash`).
+- **Navigation properties** express relationships in object terms: alongside a scalar FK
+  (`int MerchantId`) an entity carries a reference to the *related entity* (`Merchant Merchant`), so
+  a query can traverse `entry.Merchant.Name` and EF turns it into a SQL JOIN. Initialize a required
+  (non-null) reference navigation with `= null!;` (EF populates it on load) — **not** `required`,
+  since you set the scalar FK, not the whole object, when creating a row. Navigations are
+  **mapping-only**: they map onto the FK constraints the dacpac already defines and do **not** change
+  the schema (still no migrations).
+
+### DTOs & projections (`Api/Contracts/`)
+
+- **Entity vs DTO — two shapes for two audiences.** An **entity** (`Api/Entities/`) mirrors a table
+  for EF; a **DTO** (`Api/Contracts/`, namespace `Api.Contracts`) is the API's outward contract. Keep
+  them apart — a `using Api.Entities;` inside a `Contracts/` file is a **smell** that the DB shape has
+  leaked into the wire shape. A simple read endpoint may still return an entity directly (as
+  `/accounts` does), but introduce a DTO the moment the response needs a *different shape* than the
+  table: to expose related **names** instead of FK ids, to drop internal/audit columns
+  (`LastModifiedUtc`, `EndUser.PasswordHash`), or to flatten a graph for one screen.
+- **Naming & files**: `PascalCase` with a role suffix — `…Dto` for a full/detail shape, `…Li` for a
+  lean list-item shape (`TransactionLi`, `TransactionDto`). One public type per file, as elsewhere —
+  with a pragmatic exception for a small cluster of tightly-related contracts sharing a file named
+  for the *concept* (never a catch-all `Dtos.cs`). Build DTOs **for the slice in front of you**, not
+  speculatively.
+- **Projection is how you fill a DTO**: shape it inside the query with LINQ
+  `.Select(e => new TransactionLi { Merchant = e.Merchant.Name, … })`. EF translates the projection
+  plus navigation traversals into a single SQL statement that JOINs and selects **only** the
+  projected columns — the server-side "only what's needed crosses the wire" path. Preferred over
+  `Include`, which eager-loads whole related rows. LINQ is lazy: nothing hits the DB until
+  `.ToListAsync()` materializes the query.
 
 ## Connection string & secrets
 
@@ -110,10 +138,12 @@ dotnet build        # compile-check only
 
 ## Current state
 
-- `GET /accounts` returns `Account` rows from the containerized DB as JSON, now consumed
-  end-to-end by the SvelteKit `/accounts` page (first vertical slice — see `frontend.md`). CORS is
-  configured to allow the dev frontend origin.
-- Only `Account` is exercised end-to-end; the other six entities exist as files and are mapped but
-  not yet driven by an endpoint.
-- Next: further slices (more endpoints/entities); introduce DTOs when an endpoint would otherwise
-  leak internal fields.
+- `GET /accounts` returns `Account` entities directly (first vertical slice). `GET /transactions`
+  (second slice) projects `LedgerEntry` + its `Account`/`Merchant`/`Category` navigations into a
+  `TransactionLi` DTO, so the response carries related **names**, not FK ids. Both are consumed
+  end-to-end by the SvelteKit `/accounts` and `/transactions` pages (see `frontend.md`). CORS allows
+  the dev frontend origin.
+- `Account`, `LedgerEntry`, `Merchant`, and `Category` are now exercised end-to-end; `Access`,
+  `CategoryGroup`, and `EndUser` exist as mapped entities but aren't yet driven by an endpoint.
+- Next: further slices; a `GET /transactions/{id}` detail endpoint is the natural place a fuller
+  `TransactionDto` (deliberately not built yet — kept out per build-for-the-slice) would earn its keep.

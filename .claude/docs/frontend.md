@@ -97,15 +97,41 @@ API and renders the rows (DB → API → screen, end-to-end). What settled:
 - **API JSON gotchas** when writing response types: .NET serializes properties as **camelCase**
   (`Name` → `name`) and `DateTime` as an **ISO-8601 string** (JSON has no date type);
   `decimal`/`int`/`byte` all map to TS `number` (watch `decimal`→`number` precision for money later).
+  A nullable column (`decimal?`) serializes as JSON `null` (never `undefined` — JSON has no
+  `undefined` token), so its TS type is `… | null`, not `… | undefined`.
+- **The response type is an unverified promise.** TS can't check a hand-written response type against
+  a live server, so when the API's shape changes (e.g. returning names via a DTO instead of FK ids)
+  the frontend type *and* the template must change in lockstep — otherwise you get silent
+  `undefined`s (blank cells), not a compile error.
 - **CORS is handled on the API side** (see `api.md`); the frontend needs no CORS code.
 - **Still hardcoded** (dev convenience — revisit with config when a second environment exists): the
   API base URL (`http://localhost:5046`) in `load`.
 
+## Display formatting
+
+Formatting raw API values for humans is a **frontend** job (the API sends raw data — `505.0000`,
+`2025-02-21T00:00:00`):
+
+- **Money** → `Intl.NumberFormat("en-US", { style: "currency", currency: "USD" })`, constructed
+  **once** as a `const` in `<script>` and reused via `.format(n)` per row (building a formatter is
+  comparatively costly). It handles sign, 2-decimal padding, and grouping — don't hand-roll
+  `"$" + n.toFixed(2)`. `Intl.DateTimeFormat` is the same tool for dates.
+- **Nullish display**: prefer `?? 0` (nullish coalescing — only `null`/`undefined`) over `|| 0`
+  (any falsy) when substituting for a possibly-null number; decide whether "no value" should render
+  as `$0.00` or a blank cell.
+- **Known issue — timezone-less dates.** `DATETIME2` columns serialize with **no zone marker**
+  (`"2025-02-21T00:00:00"`, no trailing `Z`), and JS parses a zone-less datetime as **local** time,
+  which can shift the displayed *day*. Currently dodged by showing date-only midnight values; give
+  this a proper fix (how dates are stored/represented UTC-wise) when transaction **entry** (writing
+  dates back) lands.
+
 ## Current state
 
-- **First vertical slice complete**: `/accounts` (`src/routes/accounts/+page.ts` + `+page.svelte`)
-  fetches `GET /accounts` and renders the rows in a plain HTML table. Verified end-to-end against
-  the containerized DB and running API.
-- `/` is still the default skeleton page; no styling yet (plain table, per plain-CSS-first).
-- Next: display formatting (money, dates, the raw ISO timestamps/booleans currently shown as-is),
-  then further slices; move the hardcoded dev URL to config when a second environment appears.
+- **Two vertical slices complete**, same shape (`+page.ts` universal `load` → typed `data` prop →
+  `+page.svelte` table): `/accounts` renders `GET /accounts`; `/transactions` renders
+  `GET /transactions` with related **names** (not ids), money via `Intl.NumberFormat`, and
+  date-only formatting. Both verified end-to-end against the containerized DB and running API.
+- `/` is still the default skeleton page; no styling yet (plain tables, per plain-CSS-first) — a
+  scoped `<style>` pass (e.g. right-aligning numeric columns) is the deferred next polish.
+- Next: styling pass; the timezone-less-date fix when transaction entry lands; move the hardcoded
+  dev URL (`http://localhost:5046`) to config when a second environment appears.

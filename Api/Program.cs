@@ -1,3 +1,4 @@
+using Api.Contracts;
 using Api.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -31,5 +32,17 @@ app.UseHttpsRedirection();
 app.UseCors(originPolicy);
 
 app.MapGet("/accounts", async (FinanceDbContext db) => await db.Account.ToListAsync());
+app.MapGet("/transactions", async (FinanceDbContext db) => 
+    await db.LedgerEntry.Select(e => new TransactionLi
+    {
+        Id = e.Id,
+        Account = e.Account.Name,
+        Merchant = e.Merchant.Name,
+        Category = e.Category.Name,
+        Amount = e.Amount,
+        CashBack = e.CashBack,
+        UserDateUtc = e.UserDateUtc
+    }).ToListAsync()
+);
 
 app.Run();

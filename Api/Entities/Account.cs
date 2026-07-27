@@ -1,9 +1,9 @@
-namespace Api.Models;
+namespace Api.Entities;
 
 public class Account
 {
     public int Id { get; set; }
-    public byte TypeId {get; set; }
+    public byte TypeId { get; set; }
     public required string Name { get; set; }
     public DateTime StartDateUtc { get; set; }
     public bool IsActive { get; set; }
