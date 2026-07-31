@@ -1,5 +1,6 @@
 CREATE TABLE Account (
     Id INT IDENTITY(1,1),
+    GroupId INT NOT NULL,
     TypeId TINYINT NOT NULL,
     Name NVARCHAR(100) NOT NULL,
     StartDateUtc DATETIME2 NOT NULL,
@@ -8,5 +9,7 @@ CREATE TABLE Account (
     LastModifiedUtc DATETIME2 NOT NULL CONSTRAINT DF_Account_LastModifiedUtc DEFAULT SYSUTCDATETIME(),
 
     CONSTRAINT PK_Account PRIMARY KEY (Id),
-    CONSTRAINT CK_Account_TypeId CHECK (TypeId BETWEEN 1 AND 5)
+    CONSTRAINT FK_Account_UserGroup FOREIGN KEY (GroupId) REFERENCES UserGroup(Id),
+    CONSTRAINT CK_Account_TypeId CHECK (TypeId BETWEEN 1 AND 5),
+    CONSTRAINT UQ_Account_GroupId_Id UNIQUE (GroupId, Id)
 );
