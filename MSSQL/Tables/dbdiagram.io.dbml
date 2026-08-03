@@ -1,8 +1,10 @@
 // Use DBML to define your database structure
 // Docs: https://dbml.dbdiagram.io/docs
 
+// Bank Accounts
 TABLE Account {
   Id INT [pk, NOT NULL]
+  GroupId INT [NOT NULL, Ref: > UserGroup.Id]
   TypeId TINYINT [
     NOTE: '''
       1: Savings  
@@ -15,43 +17,95 @@ TABLE Account {
   ]
   Name NVARCHAR(100) [NOT NULL]
   StartDateUtc DATETIME2 [NOT NULL]
-  IsActive BIT [NOT NULL]
-  StartBalance DECIMAL(19,4) [NOT NULL]
-  LastModifiedUtc DATETIME2 [NOT NULL]
+  IsActive BIT [NOT NULL, default: 1]
+  StartBalance DECIMAL(19,4) [NOT NULL, default: 0]
+  LastModifiedUtc DATETIME2 [NOT NULL, default: `SYSUTCDATETIME()`]
+
+  indexes {
+    (GroupId, Id) [unique]
+  }
 }
 
-TABLE FinancialTransaction {
+
+// Transactions
+TABLE LedgerEntry {
   Id INT [pk, NOT NULL]
-  AccountId INT [NOT NULL, Ref: > Account.Id]
-  MerchantId INT [NOT NULL, Ref: > Merchant.Id]
-  CategoryId INT [NOT NULL, Ref: > Category.Id]
+  AccountId INT [NOT NULL]
+  MerchantId INT [NOT NULL]
+  GroupId INT [NOT NULL, Ref: > UserGroup.Id]
+  CategoryId INT [NOT NULL]
   Amount DECIMAL(19,4) [NOT NULL]
   CashBack DECIMAL(19,4) [NULL]
-  UserDateUtc DATETIME2 [NOT NULL]
+  UserDate DATETIMEOFFSET [NOT NULL]
   Notes NVARCHAR(1000) [NULL]
   OriginalStatement NVARCHAR(500) [NULL]
-  OriginalDateUtc DATETIME2 [NULL]
-  LastModifiedUtc DATETIME2 [NOT NULL]
+  OriginalDate DATETIMEOFFSET [NULL]
+  LastModifiedUtc DATETIME2 [NOT NULL, default: `SYSUTCDATETIME()`]
 }
 
+
+// Merchants
 TABLE Merchant {
   Id INT [pk, NOT NULL]
   Name NVARCHAR(100) [NOT NULL]
   PicPath NVARCHAR(500) [NULL]
+  Reviewed BIT [NOT NULL, default: 0]
+  Approved BIT [NOT NULL, default: 0]
 }
 
-TABLE Category {
+TABLE GroupMerchant {
   Id INT [pk, NOT NULL]
-  GroupId INT [NOT NULL, Ref: > CategoryGroup.Id]
+  GroupId INT [NOT NULL, Ref: > UserGroup.Id]
+  MerchantId INT [NOT NULL, Ref: > Merchant.Id]
+  Name NVARCHAR(100) [NULL]
+  PicPath NVARCHAR(500) [NULL]
+
+  indexes {
+    (GroupId, MerchantId) [unique]
+    (GroupId, Id) [unique]
+  }
+}
+
+
+// Categories
+TABLE DefaultCategory {
+  Id INT [pk, NOT NULL]
+  SetId INT [NOT NULL, Ref: > DefaultCategorySet.Id]
   Name NVARCHAR(50) [NOT NULL]
   IconName NVARCHAR(50) [NOT NULL]
 }
 
-TABLE CategoryGroup {
+TABLE Category {
+  Id INT [pk, NOT NULL]
+  GroupId INT [NOT NULL, Ref: > UserGroup.Id]
+  DefaultId INT [NULL, Ref: > DefaultCategory.Id]
+  SetId INT [NOT NULL]
+  Name NVARCHAR(50) [NOT NULL]
+  IconName NVARCHAR(50) [NOT NULL]
+
+  indexes {
+    (GroupId, Id) [unique]
+  }
+}
+
+TABLE DefaultCategorySet {
   Id INT [pk, NOT NULL]
   Name NVARCHAR(50) [NOT NULL]
 }
 
+TABLE CategorySet {
+  Id INT [pk, NOT NULL]
+  GroupId INT [NOT NULL, Ref: > UserGroup.Id]
+  DefaultId INT [NULL, Ref: > DefaultCategorySet.Id]
+  Name NVARCHAR(50) [NOT NULL]
+
+  indexes {
+    (GroupId, Id) [unique]
+  }
+}
+
+
+// Users
 TABLE EndUser {
   Id INT [pk, NOT NULL]
   Email VARCHAR(254) [NOT NULL, UNIQUE]
@@ -60,9 +114,14 @@ TABLE EndUser {
   PrefName NVARCHAR(50) [NOT NULL]
 }
 
-TABLE Access {
+TABLE UserGroup {
+  Id INT [pk, NOT NULL]
+  Name NVARCHAR(50) [NULL]
+}
+
+TABLE GroupMember {
   UserId INT [NOT NULL, Ref: > EndUser.Id]
-  AccountId INT [NOT NULL, Ref: > Account.Id]
+  GroupId INT [NOT NULL, Ref: > UserGroup.Id]
   PermissionLevel TINYINT [
     Note: '''
       1: Read
@@ -72,10 +131,15 @@ TABLE Access {
     NOT NULL
   ]
   GrantedByUserId INT [NULL, Ref: > EndUser.Id]
-  GrantedAtUtc DATETIME2 [NOT NULL]
+  GrantedAtUtc DATETIME2 [NOT NULL, default: `SYSUTCDATETIME()`]
   ExpireAtUtc DATETIME2 [NULL]
   
   indexes {
-    (UserId, AccountId) [pk]
+    (UserId, GroupId) [pk]
   }
 }
+
+Ref: Category.(GroupId, SetId) > CategorySet.(GroupId, Id)
+Ref: LedgerEntry.(GroupId, AccountId) > Account.(GroupId, Id)
+Ref: LedgerEntry.(GroupId, MerchantId) > GroupMerchant.(GroupId, Id)
+Ref: LedgerEntry.(GroupId, CategoryId) > Category.(GroupId, Id)

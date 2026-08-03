@@ -1,6 +1,6 @@
 namespace Api.Entities;
 
-public class CategoryGroup
+public class DefaultCategorySet
 {
     public int Id { get; set; }
     public required string Name { get; set; }

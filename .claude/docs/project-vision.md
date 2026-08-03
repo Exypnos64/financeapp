@@ -45,8 +45,63 @@ usage. Requirements:
 - A user can **grant another user access** to an account, **temporarily or permanently**.
 - Prefer a model where a shared account can have **more than one owner** (co-ownership), because
   that better mirrors how a bank treats a joint account, rather than forcing a single owner who
-  delegates. One speculative shape: users form a group, access is granted within the group, and
-  ownership can be shared. This is a design discussion to have when we get there — not settled.
+  delegates.
+
+**Settled: the unit of ownership is a *group*, not a user.** A solo user is a group of one; groups
+are what own financial accounts and what own the customizable merchant/category lists (below).
+`GroupMember` records a user's membership and permission level (read / write / owner). This replaced
+an earlier design where users held per-account grants directly — the group model resolves a
+collision the per-user version couldn't: a shared account has exactly one merchant list, so
+"whose merchant does this shared transaction point at?" has a well-defined answer.
+
+Still open (needs authentication to exist first): **master ownership of an account.** If groups own
+accounts, whoever contributed an account can be ejected from the group while the others keep access.
+Framing for when we get there — "contributed/owns this account" and "is a member of this group" are
+two separate facts; store both rather than deriving one from the other.
+
+### Merchants and categories — a curated tier plus per-group customization
+
+Both are two-tier, and the tiers work differently on purpose.
+
+**Merchants** use a global curated master list (`Merchant`: canonical name, logo path, plus
+`Reviewed`/`Approved` flags) with a per-group link table (`GroupMerchant`) whose customization
+columns are **nullable — NULL means "inherit from the master row."** Groups start with no adopted
+merchants and adopt as they go.
+
+- Customizing is per-group and affects nobody else; resetting to default is simply setting those
+  columns back to `NULL`.
+- The payoff of inheritance-by-NULL is **propagation**: fixing a name or logo in the master list
+  reaches every group that hasn't overridden it.
+- A user-created merchant enters the master list unapproved, so only reviewed-and-approved rows are
+  offered in search. This is what allows custom merchants without a separate table.
+- Duplicate and differently-capitalized names across groups are **expected, not a bug** — two
+  businesses may share a name, and a user may want to split one business into several.
+- A merchant must have at least one transaction to survive. That can't be expressed as a SQL
+  constraint, so it's an application-maintained rule, not a database-enforced one.
+
+**Categories** are copied into the group on provisioning (`DefaultCategorySet`/`DefaultCategory` →
+`CategorySet`/`Category`) rather than inherited by NULL. Rationale: merchants are a shared namespace
+worth converging on — Amazon is Amazon for everyone — whereas category taxonomy is personal and has
+no correct list to converge toward. A group can add, rename, and delete freely, or wipe its
+categories and take a fresh copy of the defaults.
+
+### Money and sign convention
+
+- **Spending is negative; transfers in are positive.** Chosen because it keeps backend arithmetic
+  uniform — summing a month is just a sum.
+- Credit cards, loans, and other liability accounts are **flipped cosmetically at the display
+  layer only**. A sign flip must never leak into the API or the database, or there'd be two
+  conventions and no way to tell which one a given number follows.
+
+### Dates and time zones
+
+Transaction times are worth keeping, not just dates — so a transaction records the *instant* it
+happened along with the offset in effect (`DATETIMEOFFSET`). System/audit timestamps stay plain UTC.
+
+- The offset is captured from the device, and must be **overridable** when it's wrong.
+- An offset is not a time zone: `-05:00` doesn't say "Chicago." If a future feature needs the
+  *rule* rather than the instant (e.g. "recurs at 9am local, forever"), that wants an IANA zone id
+  stored as a **user preference**, not stamped on every row.
 
 ### Budgeting
 
@@ -100,17 +155,21 @@ different presentation. Savings buckets should work under **all budgeting types 
 - **Mobile.** Desktop-first; mobile is a down-the-road concern.
 - **Auto-anticipating recurring transactions and prompting** — nice-to-have after the core
   recurring-expectation feature exists.
-- **Two-tier merchants & categories (public + private, shareable).** The eventual model splits
-  both `Merchant` and `Category` into a **public tier** — a vetted, canonical list (merchants with
-  properly-sourced logos, pulled from a public source) shared by everyone — and a **private tier**
-  each user adds to. Private entries must be **shareable to co-users of a financial account**, so
-  their visibility rule has to *mirror* the account-sharing model. This is deferred deliberately:
-  it's an **additive** change (a nullable owner column where `NULL` = public, plus a visibility
-  rule), so today's single global `Merchant`/`Category` tables don't block it. Build it *alongside*
-  (and reusing the pattern of) the account sharing/ownership work — designing it before that model
-  exists would mean designing the hard sharing logic twice. Implication for now: keep the seeded
-  merchant list minimal/transitional (a public source will supersede it); the seeded default
-  category taxonomy is safe to keep (it becomes the public-tier defaults).
+- **Everything that depends on authentication.** The two-tier ownership *schema* is built (see
+  "Merchants and categories" above), but no login, session, or current-user concept exists yet, so
+  the API hardcodes a seeded dev group. Blocked until then: group membership and invitations;
+  master ownership of accounts; the merchant review-queue workflow; merchant search and
+  recommendation UI; link-and-reset-to-default UI; per-group category reseed; and orphan-merchant
+  cleanup.
+- **Merchant privacy review.** User-created merchants land in a globally-visible, human-reviewed
+  table, which means a user-typed merchant name becomes visible to reviewers. Needs an answer
+  before real users exist.
+- **Same-group foreign-key integrity for the remaining tables.** `LedgerEntry` and `Category`
+  carry composite FKs that force their references to belong to the same group. The pattern could be
+  extended further, but it's safe to defer: a group id is always derivable from the account, so
+  backfilling it later is cheap.
+- **The seeded merchant list is transitional.** A public/curated source will eventually supersede
+  the 67 hand-entered rows; the default category taxonomy is safe to keep as-is.
 
 ## Priority ordering (rough)
 

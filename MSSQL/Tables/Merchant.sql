@@ -2,6 +2,8 @@ CREATE TABLE Merchant (
     Id INT IDENTITY(1,1),
     Name NVARCHAR(100) NOT NULL,
     PicPath NVARCHAR(500) NULL,
+    Reviewed BIT NOT NULL CONSTRAINT DF_Merchant_Reviewed DEFAULT 0,
+    Approved BIT NOT NULL CONSTRAINT DF_Merchant_Approved DEFAULT 0,
 
     CONSTRAINT PK_Merchant PRIMARY KEY (Id)
 );

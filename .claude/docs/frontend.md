@@ -118,20 +118,34 @@ Formatting raw API values for humans is a **frontend** job (the API sends raw da
   `"$" + n.toFixed(2)`. `Intl.DateTimeFormat` is the same tool for dates.
 - **Nullish display**: prefer `?? 0` (nullish coalescing — only `null`/`undefined`) over `|| 0`
   (any falsy) when substituting for a possibly-null number; decide whether "no value" should render
-  as `$0.00` or a blank cell.
-- **Known issue — timezone-less dates.** `DATETIME2` columns serialize with **no zone marker**
-  (`"2025-02-21T00:00:00"`, no trailing `Z`), and JS parses a zone-less datetime as **local** time,
-  which can shift the displayed *day*. Currently dodged by showing date-only midnight values; give
-  this a proper fix (how dates are stored/represented UTC-wise) when transaction **entry** (writing
-  dates back) lands.
+  as `$0.00` or a blank cell. **Open**: `cashBack` is `NULL` on every current row and renders as
+  `$0.00`, which reads as "zero cashback" rather than "none recorded". A blank cell is probably
+  truer; decide deliberately rather than inheriting it.
+- **Timezone-less dates — resolved by the schema, not by frontend code.** This used to be a known
+  bug: `DATETIME2` columns serialized with no zone marker (`"2025-02-21T00:00:00"`), and JS parses a
+  zone-less datetime as **local**, which could shift the displayed *day*. User-meaningful columns are
+  now `DATETIMEOFFSET`, so they serialize *with* the offset (`"2025-02-21T00:00:00-06:00"`) and JS
+  parses them unambiguously. System timestamps (`lastModifiedUtc`) are still zone-less `DATETIME2` —
+  fine, since they're never displayed as a calendar date.
+- **Still worth knowing for transaction entry**: `Intl.DateTimeFormat` formats an instant in the
+  *viewer's* zone. For a transaction date you usually want the date as it was **in the offset it was
+  recorded in** — otherwise a late-evening purchase can display a day off for a viewer in another
+  zone. Storing the offset makes that possible; it doesn't happen automatically.
 
 ## Current state
 
 - **Two vertical slices complete**, same shape (`+page.ts` universal `load` → typed `data` prop →
   `+page.svelte` table): `/accounts` renders `GET /accounts`; `/transactions` renders
   `GET /transactions` with related **names** (not ids), money via `Intl.NumberFormat`, and
-  date-only formatting. Both verified end-to-end against the containerized DB and running API.
+  date-only formatting. Both verified end-to-end against the containerized DB and running API,
+  including after the merchant-ownership schema refactor.
+- The refactor renamed `userDateUtc` → `userDate` on the transaction shape. A reminder of why that
+  mattered: the response type is hand-written, so a server-side rename produces **blank cells**, not
+  a compile error — the type and the template have to move in lockstep.
 - `/` is still the default skeleton page; no styling yet (plain tables, per plain-CSS-first) — a
   scoped `<style>` pass (e.g. right-aligning numeric columns) is the deferred next polish.
-- Next: styling pass; the timezone-less-date fix when transaction entry lands; move the hardcoded
-  dev URL (`http://localhost:5046`) to config when a second environment appears.
+- Next: the transaction-entry slice — a `+page.server.ts` **form action** (chosen over client-side
+  `fetch`: works without JS, and server-to-server calls sidestep CORS preflight entirely), which
+  brings first contact with `request.formData()` where **every field arrives as a string** and empty
+  optional inputs arrive as `""` rather than `null`. Then: styling pass; move the hardcoded dev URL
+  (`http://localhost:5046`) to config when a second environment appears.

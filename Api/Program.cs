@@ -37,11 +37,11 @@ app.MapGet("/transactions", async (FinanceDbContext db) =>
     {
         Id = e.Id,
         Account = e.Account.Name,
-        Merchant = e.Merchant.Name,
+        Merchant = e.Merchant.Name ?? e.Merchant.Merchant.Name,
         Category = e.Category.Name,
         Amount = e.Amount,
         CashBack = e.CashBack,
-        UserDateUtc = e.UserDateUtc
+        UserDate = e.UserDate
     }).ToListAsync()
 );
 

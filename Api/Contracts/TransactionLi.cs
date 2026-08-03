@@ -8,5 +8,5 @@ public record TransactionLi
     public required string Category { get; init; }
     public decimal Amount { get; init; }
     public decimal? CashBack { get; init; }
-    public DateTime UserDateUtc { get; init; }
+    public DateTimeOffset UserDate { get; init; }
 }

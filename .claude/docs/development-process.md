@@ -56,8 +56,14 @@ fully known up front. The goal isn't zero rework; it's keeping the expensive rew
 
 ### Conceptual (the interesting ones)
 
-- **Modeling sharing / ownership.** Co-owned accounts, temporary vs. permanent grants, groups —
-  a genuine data-modeling puzzle (a many-to-many relationship with permissions attached).
+- **Modeling sharing / ownership.** *(Largely resolved — see `project-vision.md`.)* Settled on a
+  `UserGroup` as the ownership unit rather than per-user grants. Worth noting how this one actually
+  played out, because it's the canonical example of the "expensive backtracking" this doc warns
+  about: it surfaced sideways, while designing per-user **merchant** lists, when the question "whose
+  merchant does a *shared* account's transaction point at?" turned out to have no good answer. The
+  sharing model and the merchant-ownership model were the same problem. It got reworked before any
+  real data existed, which is the only reason it was cheap. Still open: **master ownership** of an
+  account (whoever contributes an account can currently be ejected by the group).
 - **Splits-as-one-transaction.** The owner's preferred behavior is *harder* to model than
   Monarch's: a transaction that pulls from multiple buckets but shows as one row needs a
   parent/child structure underneath.
