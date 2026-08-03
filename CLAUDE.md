@@ -42,11 +42,15 @@ to know what the product is supposed to do.
 
 **Contains**: the full product intent — a Monarch-like personal finance app with two departures
 (bucket/envelope budgeting preferred; splits shown as one transaction across multiple buckets).
-Covers the two meanings of "account" (financial vs. user), multi-user + shared/co-owned account
-access, budgeting styles (flex/category/bucket), a tagging system separate from categories,
-transaction splitting (default to Monarch's multi-line style but make it a setting),
-reconciliation with two-level pattern recognition (vendors, recurring transactions), savings
-goals, the rough priority ordering, and explicitly-deferred items (Plaid, mobile, auto-prompting).
+Covers the two meanings of "account" (financial vs. user); **group-based ownership** (settled: a
+`UserGroup` owns accounts and lists; a solo user is a group of one) and the still-open
+account master-ownership problem; the **two-tier merchant/category model** (curated master list +
+per-group customization, inherit-by-NULL for merchants vs. copy-on-provision for categories) and why
+they differ; the **sign convention** and the **date/time-zone** decision; budgeting styles
+(flex/category/bucket), a tagging system separate from categories, transaction splitting (default to
+Monarch's multi-line style but make it a setting), reconciliation with two-level pattern recognition
+(vendors, recurring transactions), savings goals, the rough priority ordering, and
+explicitly-deferred items (everything auth-dependent, Plaid, mobile, auto-prompting).
 
 ### `.claude/docs/tech-stack.md`
 
@@ -144,7 +148,14 @@ with a `.claude/docs/tool-references/<tool>-guide.md` and indexed here.
 - **Transaction-split display defaults to Monarch's multi-line style, but is a user setting** --
   the single-transaction/multi-bucket style is the owner's preference, not the default.
 - **Keep two meanings of "account" distinct in the data model**: financial accounts (checking,
-  savings, loan…) vs. user accounts (login/identity).
+  savings, loan…) vs. user accounts (login/identity). **Same rule for "group"**: `UserGroup` is the
+  ownership/sharing unit; a *category* grouping is a `CategorySet` — never "CategoryGroup".
+- **The ownership unit is a `UserGroup`, not a user.** Financial accounts, merchant lists, and
+  category lists all belong to a group; a solo user is a group of one. **No authentication exists
+  yet**, so writes hardcode the seeded dev group (`GroupId = 1`). Don't design membership, roles, or
+  account master-ownership until auth lands — see `project-vision.md`.
+- **Sign convention: spending is negative, transfers in are positive.** Credit/loan accounts flip
+  **cosmetically at the display layer only** — never in the API or the DB.
 - **Never commit secrets** (connection strings, API keys, Plaid credentials) -- keep them out of
   version control; see `.gitignore`.
 - **Keep this file lean and current** -- push detail into `.claude/docs/`; update the index when
@@ -166,20 +177,36 @@ from the `MSSQL/` schema and **C#/.NET** conventions are now settling from the `
   matching the folder path (`Api.Entities`, `Api.Data`, `Api.Contracts`); one public type per file
   (pragmatic exception: a small cluster of tightly-related DTOs may share a file named for the
   concept). EF entities (`Api/Entities/`) mirror their table one-for-one, including column
-  nullability; DTOs (`Api/Contracts/`, suffixed `…Dto`/`…Li`) are the API's response shapes, kept
-  distinct from entities and built per-slice.
+  nullability **and datetime kind** (`DATETIMEOFFSET` → `DateTimeOffset`, `DATETIME2` → `DateTime`) —
+  mismatches surface at runtime on the first query, never at build; DTOs (`Api/Contracts/`, suffixed
+  `…Dto`/`…Li`) are the API's response shapes, kept distinct from entities and built per-slice.
 - **SQL Server** (settled — see `MSSQL/`):
   - *Names*: `PascalCase` tables and columns; **singular** table names (`Account`, `LedgerEntry`).
     Rename around reserved words (`EndUser` not `User`, `LedgerEntry` not `Transaction`). UTC
-    datetime columns take a `Utc` suffix (`LastModifiedUtc`).
-  - *Keys*: surrogate `Id INT IDENTITY(1,1)`; composite PK for pure junction tables (`Access`).
+    datetime columns take a `Utc` suffix (`LastModifiedUtc`) — and **only** those, so a column
+    carrying an offset must *not* (`UserDate`, not `UserDateUtc`). Curated/global tier tables are
+    prefixed `Default` (`DefaultCategory`); per-group tables carry `GroupId`.
+  - *Keys*: surrogate `Id INT IDENTITY(1,1)`; composite PK for pure junction tables (`GroupMember`).
+    A redundant-looking `UNIQUE (GroupId, Id)` exists purely to be a legal **composite FK target** —
+    SQL Server only accepts FK targets it can prove unique.
   - *Constraints (always named, never auto-named)*: `PK_<Table>`, `FK_<Child>_<Parent>` (add
-    `_<Column>` when a table has multiple FKs to one parent), `UQ_<Table>_<Column>`,
-    `DF_<Table>_<Column>`, `CK_<Table>_<Column>`.
-  - *Types*: money `DECIMAL(19,4)`; timestamps `DATETIME2` stored in **UTC**; booleans `BIT`;
-    `NVARCHAR(n)` for human-entered text, `VARCHAR(n)` for ASCII-only (email, hashes); always
-    explicit `NULL`/`NOT NULL`. Small, fixed, code-owned enums as `TINYINT` + a `CHECK` range
-    constraint (not a lookup table); use a lookup table + FK only when the set is user-editable data.
+    `_<Column>` when a table has multiple FKs to one parent), `UQ_<Table>_<Column(s)>`,
+    `DF_<Table>_<Column>`, `CK_<Table>_<Column>`. Unique **indexes** take the same `UQ_` prefix as
+    unique constraints (intent over mechanism) — and a *filtered* unique index has to be an index,
+    since constraints can't carry a `WHERE`. **When renaming a table, rename its constraints too**;
+    they've drifted twice.
+  - *Types*: money `DECIMAL(19,4)`; booleans `BIT`; `NVARCHAR(n)` for human-entered text,
+    `VARCHAR(n)` for ASCII-only (email, hashes); always explicit `NULL`/`NOT NULL`. Small, fixed,
+    code-owned enums as `TINYINT` + a `CHECK` range constraint (not a lookup table); use a lookup
+    table + FK only when the set is user-editable data.
+  - *Two kinds of datetime, and the distinction is load-bearing*: **user-meaningful** times
+    (when a transaction happened) are `DATETIMEOFFSET`; **system/audit** timestamps are `DATETIME2`
+    in UTC. An offset is not a time zone — see `project-vision.md`.
+  - *Seeding*: `Script.PostDeployment.sql` runs **top-to-bottom imperatively** (unlike the schema
+    build, which resolves dependency order itself), and is **not** semantically validated at build
+    time — a stale seed script compiles fine and fails at publish. Never reference an
+    `IDENTITY`-assigned id by a hardcoded literal; look rows up by a stable business key
+    (`(GroupId, DefaultId)`), because `INSERT … SELECT` assigns ids in arbitrary join-output order.
   - *Project*: schema-as-code via a `Microsoft.Build.Sql` project, built to a dacpac and published
     with `sqlpackage`; one file per object under `Tables/`; idempotent seed/reference rows in
     `Script.PostDeployment.sql` (ensure-exists for sentinels, seed-if-empty for starter content).

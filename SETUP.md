@@ -83,12 +83,20 @@ Connect to the server with the following settings:
 
 ### 10. Verify everything is up and running
 
-You can run the following selects to ensure that setup was successful. There should be data populating both of these tables from `MSSQL\Script.PostDeployment.sql`.
+You can run the following selects to ensure that setup was successful. All of these are populated by
+`MSSQL\Script.PostDeployment.sql` — the first two are the curated defaults, the last two are the
+seeded dev group's own copies.
 
 ```sql
-SELECT * FROM dbo.CategoryGroup;
-SELECT * FROM dbo.Category;
+SELECT * FROM dbo.DefaultCategorySet;   -- 14 rows
+SELECT * FROM dbo.Merchant;             -- 67 rows (curated master list)
+SELECT * FROM dbo.CategorySet;          -- 14 rows, GroupId = 1
+SELECT * FROM dbo.Category;             -- 51 rows, GroupId = 1
 ```
+
+Note that `Category.Id` values are **not** expected to line up with `DefaultCategory.Id` — the
+copy-into-group insert lets `IDENTITY` assign ids in join-output order, so e.g. "Uncategorized"
+lands wherever it lands. Look rows up by `(GroupId, DefaultId)`, never by a hardcoded id.
 
 ---
 

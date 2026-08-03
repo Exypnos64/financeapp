@@ -57,6 +57,10 @@ dotnet build        # compile-check only
   `required` is fine for `string`). Mismatches surface as materialization errors at read time, not
   at build.
 - **Money is `decimal`** (never `double`/`float`), matching the DB's `DECIMAL(19,4)`.
+- **Dates split by kind, and the CLR type must follow the column type.** User-meaningful times
+  (`LedgerEntry.UserDate`, `OriginalDate`) are `DATETIMEOFFSET` → **`DateTimeOffset`**;
+  system/audit timestamps (`LastModifiedUtc`, `GrantedAtUtc`) are `DATETIME2` UTC → **`DateTime`**.
+  Mapping a `DATETIMEOFFSET` column to `DateTime` silently discards the offset.
 - **Context** is `FinanceDbContext` in `Api/Data/`, namespace `Api.Data`, deriving from `DbContext`
   with a `DbContextOptions`-accepting constructor (options supplied by DI).
 - **`DbSet` property names are singular** (`DbSet<Account> Account`) so EF's table-name convention
@@ -67,12 +71,28 @@ dotnet build        # compile-check only
   (e.g. `Access`) need an explicit `[PrimaryKey(nameof(A), nameof(B))]` — EF can't infer composite
   keys by convention.
 - **Navigation properties** express relationships in object terms: alongside a scalar FK
-  (`int MerchantId`) an entity carries a reference to the *related entity* (`Merchant Merchant`), so
-  a query can traverse `entry.Merchant.Name` and EF turns it into a SQL JOIN. Initialize a required
+  (`int MerchantId`) an entity carries a reference to the *related entity* (`GroupMerchant Merchant`),
+  so a query can traverse `entry.Merchant.Name` and EF turns it into a SQL JOIN. Initialize a required
   (non-null) reference navigation with `= null!;` (EF populates it on load) — **not** `required`,
-  since you set the scalar FK, not the whole object, when creating a row. Navigations are
+  since you set the scalar FK, not the whole object, when creating a row. A **nullable** FK
+  (`int? DefaultId`) takes a nullable navigation (`DefaultCategory?`). Navigations are
   **mapping-only**: they map onto the FK constraints the dacpac already defines and do **not** change
   the schema (still no migrations).
+- **A navigation pairs with the FK property named `<NavigationName>Id`.** Naming a navigation
+  `Default` when the FK column is `SetId` makes EF invent a *shadow* `DefaultId` property and try to
+  map a column that doesn't exist — a runtime model error, not a compile error. Name the navigation
+  after its FK (`SetId` → `Set`), or configure the pairing explicitly.
+- **Composite FKs in the DB are deliberately mapped as single-column relationships in EF.** Four
+  foreign keys (`LedgerEntry` → `Account`/`GroupMerchant`/`Category`, and `Category` → `CategorySet`)
+  are composite on `(GroupId, <Id>)` in the schema, enforcing that a row's references all belong to
+  the same group. EF is left to infer plain single-column relationships from `AccountId → Account.Id`
+  etc., which generates correct JOINs because the target ids are unique. The composite constraint is
+  an **integrity** concern the database owns; EF's mapping is a **query** concern — consistent with
+  "the dacpac owns the schema." Consequence: assigning a navigation does **not** populate `GroupId`,
+  so a write path must set it explicitly (from the validated account lookup). Modelling the composite
+  form in EF is possible but fluent-API-only — `HasForeignKey(e => new { e.GroupId, e.AccountId })`
+  plus `HasPrincipalKey(a => new { a.GroupId, a.Id })`, the latter required because the target is an
+  alternate key, not the PK. There is no attribute equivalent.
 
 ### DTOs & projections (`Api/Contracts/`)
 
@@ -89,11 +109,19 @@ dotnet build        # compile-check only
   for the *concept* (never a catch-all `Dtos.cs`). Build DTOs **for the slice in front of you**, not
   speculatively.
 - **Projection is how you fill a DTO**: shape it inside the query with LINQ
-  `.Select(e => new TransactionLi { Merchant = e.Merchant.Name, … })`. EF translates the projection
+  `.Select(e => new TransactionLi { Category = e.Category.Name, … })`. EF translates the projection
   plus navigation traversals into a single SQL statement that JOINs and selects **only** the
   projected columns — the server-side "only what's needed crosses the wire" path. Preferred over
   `Include`, which eager-loads whole related rows. LINQ is lazy: nothing hits the DB until
   `.ToListAsync()` materializes the query.
+- **Resolving an inherited merchant name takes a two-hop traversal and `??`.**
+  `GroupMerchant.Name` is the group's *override* and is `NULL` when the group hasn't customized, so
+  the display name is `e.Merchant.Name ?? e.Merchant.Merchant.Name` — the group's merchant, falling
+  back to the master row. EF translates `??` to SQL `COALESCE` and each hop to a JOIN, so it stays
+  one statement. (The doubled `.Merchant.Merchant` is forced by the naming convention above:
+  `MerchantId` pairs with `Merchant` on both entities. Cosmetic, fixable with fluent config.)
+  `PicPath` needs the same treatment. Getting this wrong doesn't throw — it projects `null` into a
+  non-nullable DTO property and renders as a blank cell.
 
 ## Connection string & secrets
 
@@ -143,7 +171,18 @@ dotnet build        # compile-check only
   `TransactionLi` DTO, so the response carries related **names**, not FK ids. Both are consumed
   end-to-end by the SvelteKit `/accounts` and `/transactions` pages (see `frontend.md`). CORS allows
   the dev frontend origin.
-- `Account`, `LedgerEntry`, `Merchant`, and `Category` are now exercised end-to-end; `Access`,
-  `CategoryGroup`, and `EndUser` exist as mapped entities but aren't yet driven by an endpoint.
-- Next: further slices; a `GET /transactions/{id}` detail endpoint is the natural place a fuller
-  `TransactionDto` (deliberately not built yet — kept out per build-for-the-slice) would earn its keep.
+- All **11** tables are mapped as entities (`Account`, `Category`, `CategorySet`, `DefaultCategory`,
+  `DefaultCategorySet`, `EndUser`, `GroupMember`, `GroupMerchant`, `LedgerEntry`, `Merchant`,
+  `UserGroup`) and registered on `FinanceDbContext`. EF builds its model **all-or-nothing at first
+  query**, so a mapping mistake surfaces as a runtime exception on the first request, *not* as a
+  build error — `dotnet build` passing proves nothing about the model. Hit `/accounts` first when
+  verifying: no projection, no navigations, so it isolates "does the model bind."
+- Only `Account`, `LedgerEntry`, `GroupMerchant`, `Merchant`, and `Category` are exercised by an
+  endpoint; the rest are mapped but not yet driven by one.
+- **No authentication yet.** Group is the ownership unit, but there's no current-user concept, so
+  writes will hardcode the seeded dev group (`GroupId = 1`) until auth lands.
+- Next: the transaction-entry slice — a request DTO (needs a naming suffix decision; `…Li`/`…Dto`
+  don't cover request bodies), `MapPost` returning `201` via `Results.Created`, validating
+  `AccountId` rather than letting an FK violation become a 500, find-or-insert against the master
+  merchant list, and setting `GroupId` from the account lookup. A `GET /transactions/{id}` detail
+  endpoint remains the natural place a fuller `TransactionDto` would earn its keep.
