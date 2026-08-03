@@ -23,8 +23,8 @@
                 <td>{transaction.merchant}</td>
                 <td>{transaction.category}</td>
                 <td>{moneyFormat.format(transaction.amount)}</td>
-                <td>{moneyFormat.format(transaction.cashBack ?? 0)}</td>
-                <td>{new Date(transaction.userDateUtc).toLocaleDateString("en-US", { day: "2-digit", "month": "2-digit", "year": "2-digit" })}</td>
+                <td>{transaction.cashBack ? moneyFormat.format(transaction.cashBack) : ""}</td>
+                <td>{new Date(transaction.userDate).toLocaleDateString("en-US", { day: "2-digit", "month": "2-digit", "year": "2-digit" })}</td>
             </tr>
             {/each}
         </tbody>
