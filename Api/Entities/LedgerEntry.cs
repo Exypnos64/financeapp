@@ -8,16 +8,19 @@ public class LedgerEntry
     public Account Account { get; set; } = null!;
 
     public int MerchantId { get; set; }
-    public Merchant Merchant { get; set; } = null!;
+    public GroupMerchant Merchant { get; set; } = null!;
+
+    public int GroupId { get; set; }
+    public UserGroup Group { get; set; } = null!;
 
     public int CategoryId { get; set; }
     public Category Category { get; set; } = null!;
 
     public decimal Amount { get; set; }
     public decimal? CashBack { get; set; }
-    public DateTime UserDateUtc { get; set; }
+    public DateTimeOffset UserDate { get; set; }
     public string? Notes { get; set; }
     public string? OriginalStatement { get; set; }
-    public DateTime? OriginalDateUtc { get; set; }
+    public DateTimeOffset? OriginalDate { get; set; }
     public DateTime LastModifiedUtc { get; set; }
 }
