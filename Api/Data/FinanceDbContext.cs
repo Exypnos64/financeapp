@@ -6,6 +6,11 @@ using Microsoft.EntityFrameworkCore;
 public class FinanceDbContext : DbContext
 {
     public FinanceDbContext(DbContextOptions<FinanceDbContext> options) : base(options) { }
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        configurationBuilder.Properties<decimal>().HavePrecision(19, 4);
+        base.ConfigureConventions(configurationBuilder);
+    }
 
     public DbSet<Account> Account => Set<Account>();
     public DbSet<Category> Category => Set<Category>();

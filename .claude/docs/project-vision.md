@@ -164,6 +164,17 @@ different presentation. Savings buckets should work under **all budgeting types 
 - **Merchant privacy review.** User-created merchants land in a globally-visible, human-reviewed
   table, which means a user-typed merchant name becomes visible to reviewers. Needs an answer
   before real users exist.
+- **Write-path idempotency — a duplicate-ledger-entry hazard.** A failed *response* does not mean a
+  failed *write*. Observed concretely while building `POST /transactions`: the `INSERT` committed, then
+  response serialization threw, so the client saw a 500 with a row already in `LedgerEntry`. Any client
+  that retries on 5xx (or a user who clicks Submit twice) double-enters the transaction — and for a
+  financial ledger a phantom duplicate is worse than a missing entry, because it silently corrupts
+  every balance and budget derived from it. No mitigation exists today. The eventual fix is a
+  client-supplied idempotency key on write endpoints (a `UNIQUE` constraint makes the retry a no-op
+  rather than a second row); a natural-key uniqueness rule is not viable, since two genuinely distinct
+  transactions can legitimately share account/merchant/amount/date. Deferred as a hardening concern —
+  but it must be settled **before** statement import lands, since a bulk import is exactly where a
+  partial-failure retry does the most damage.
 - **Same-group foreign-key integrity for the remaining tables.** `LedgerEntry` and `Category`
   carry composite FKs that force their references to belong to the same group. The pattern could be
   extended further, but it's safe to defer: a group id is always derivable from the account, so

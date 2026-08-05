@@ -178,8 +178,12 @@ from the `MSSQL/` schema and **C#/.NET** conventions are now settling from the `
   (pragmatic exception: a small cluster of tightly-related DTOs may share a file named for the
   concept). EF entities (`Api/Entities/`) mirror their table one-for-one, including column
   nullability **and datetime kind** (`DATETIMEOFFSET` → `DateTimeOffset`, `DATETIME2` → `DateTime`) —
-  mismatches surface at runtime on the first query, never at build; DTOs (`Api/Contracts/`, suffixed
-  `…Dto`/`…Li`) are the API's response shapes, kept distinct from entities and built per-slice.
+  mismatches surface at runtime on the first query, never at build. **Anywhere the CLR type is less
+  specific than the SQL type, EF must be told explicitly and the failure is silent**: `decimal` carries
+  no precision, so money needs `HavePrecision(19, 4)` or it truncates to scale 2 on write. DTOs
+  (`Api/Contracts/`) are the API's wire shapes, kept distinct from entities and built per-slice —
+  `…Dto`/`…Li` for responses, `Create…Request` for request bodies, where nullability means "may be
+  omitted" (and `required` enforces presence) rather than mirroring the column.
 - **SQL Server** (settled — see `MSSQL/`):
   - *Names*: `PascalCase` tables and columns; **singular** table names (`Account`, `LedgerEntry`).
     Rename around reserved words (`EndUser` not `User`, `LedgerEntry` not `Transaction`). UTC
