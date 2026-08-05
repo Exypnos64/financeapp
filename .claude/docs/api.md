@@ -16,9 +16,11 @@ as the API grows.
   layers later is cheap backtracking, and the skeleton didn't justify the ceremony. Revisit if/when
   a domain/data separation earns its keep.
 - **Minimal APIs** over controllers for the same reason: less ceremony, closest to the owner's
-  FastAPI mental model. Endpoints are mapped in `Program.cs`.
+  FastAPI mental model. Endpoints live in `Api/Endpoints/`, one file per resource, each registered
+  from `Program.cs` in a single line — see *Endpoint organization* below.
 - Folders: `Api/Entities/` (EF entities — POCOs mirroring tables), `Api/Data/` (the `DbContext`),
-  `Api/Contracts/` (DTOs — the API's outward-facing response shapes).
+  `Api/Contracts/` (DTOs — the API's outward-facing response shapes), `Api/Endpoints/` (route
+  registration, one file per resource).
 
 ## Running it
 
@@ -36,6 +38,46 @@ dotnet build        # compile-check only
   curl). Use the **http** port for local calls to dodge the self-signed-cert trust prompt.
 - `dotnet run <file>.cs` inside a project folder is swallowed by the project — for a file-based
   scratch app use `dotnet run --file <file>.cs` (see `learning-approach.md`).
+
+## Endpoint organization
+
+Endpoints started inline in `Program.cs` and were moved out once there were three — the port gets
+more expensive per endpoint added, and `Program.cs` should read as *composition* (services,
+pipeline, "register these resources") rather than as the API's implementation.
+
+- **One file per resource, one registrar per resource.** `Api/Endpoints/TransactionEndpoints.cs`
+  holds a `static class TransactionEndpoints` with a single
+  `public static void MapTransactionEndpoints(this IEndpointRouteBuilder app)` that maps *every*
+  transaction route. `Program.cs` then costs **one line per resource**, not per endpoint — adding
+  `GET /transactions/{id}` touches only the resource file. A registrar per *endpoint*
+  (`app.GetTransactions(); app.PostTransaction();`) recreates the growth problem the move was meant
+  to solve, and leaves no single place to hang a `MapGroup`.
+- **Naming**: file name = class name = `<Resource>Endpoints` (**plural** — the file holds several),
+  method = `Map<Resource>Endpoints`. `Map…` says *registers a route*, where a bare `GetTransactions`
+  reads like it returns data. A route belongs to the registrar for **its own** resource — parking
+  `/accounts` inside `TransactionEndpoints` hides it from the next reader and blocks a
+  `/transactions` group prefix.
+- **The extension-method mechanism**: a `static` method whose first parameter carries `this` extends
+  a type you don't own — resolved at compile time, nothing added to the type at runtime. Extend the
+  **interface** `IEndpointRouteBuilder` (which `WebApplication` implements) rather than
+  `WebApplication`, so the registrar isn't tied to the top-level app object. Closest analogies:
+  Flask blueprints / an Express `Router` for what it *does*; Python monkey-patching for the syntax,
+  though the resemblance stops at compile time.
+- **Registration is synchronous — never mark a registrar `async`.** `MapGet`/`MapPost` append to a
+  route table and return immediately; the `await`s in the handler lambdas belong to *those* lambdas,
+  which ASP.NET invokes per request. `async void` is additionally the language's sharpest footgun:
+  it hands the caller nothing to await and **nothing that can catch its exceptions**, so a throw
+  becomes an unhandled crash instead. Reserve it for event handlers; use `async Task` otherwise.
+- **Three silences to expect while doing this kind of move** — all consistent with "a green build
+  proves nothing":
+  - An `async` registrar with no `await` of its own drew **no warning** on a forced clean rebuild.
+  - Usings left behind after code moves out are never flagged by `dotnet build`; unused-using
+    detection is `IDE0005`, an analyzer off by default (it needs `EnforceCodeStyleInBuild`). The
+    editor greys them out; CI wouldn't.
+  - Registering the same route twice (e.g. keeping the inline copy *and* calling the new registrar)
+    **starts up fine** and fails at request time with `AmbiguousMatchException` → 500.
+- **`MapGroup("/transactions")`** returns a `RouteGroupBuilder` carrying a shared prefix, so child
+  routes become `MapGet("/")`, `MapGet("/{id}")`. Available and conventional; not adopted yet.
 
 ## Data access: EF Core in read/map mode
 
@@ -88,8 +130,8 @@ dotnet build        # compile-check only
   on the entity.
 - **Map `DbSet`s incrementally, per vertical slice.** The model builds all-or-nothing, so only
   register entities that are fully, correctly modeled. Junction tables with **composite keys**
-  (e.g. `Access`) need an explicit `[PrimaryKey(nameof(A), nameof(B))]` — EF can't infer composite
-  keys by convention.
+  (e.g. `GroupMember`) need an explicit `[PrimaryKey(nameof(A), nameof(B))]` — EF can't infer
+  composite keys by convention.
 - **Navigation properties** express relationships in object terms: alongside a scalar FK
   (`int MerchantId`) an entity carries a reference to the *related entity* (`GroupMerchant Merchant`),
   so a query can traverse `entry.Merchant.Name` and EF turns it into a SQL JOIN. Initialize a required
@@ -204,6 +246,37 @@ dotnet build        # compile-check only
   `MerchantId` pairs with `Merchant` on both entities. Cosmetic, fixable with fluent config.)
   `PicPath` needs the same treatment. Getting this wrong doesn't throw — it projects `null` into a
   non-nullable DTO property and renders as a blank cell.
+- **A projection used by more than one endpoint lives on the DTO as a `static readonly` expression.**
+  `TransactionLi.FromLedgerEntry` is a
+  `static readonly Expression<Func<LedgerEntry, TransactionLi>>` passed to `.Select(…)` by both
+  `GET /transactions` and the POST's re-query, so the seven assignments exist once. It works because
+  **an expression tree is data**, not code: one instance can be handed to any number of queries.
+  - **Naming: `From<SourceEntity>`.** `Projection` and `Selector` are both conventional and read fine
+    at the call site (a static member is always qualified by its type, which supplies the *output*
+    half), but neither names the **input**. `From…` does, follows BCL precedent
+    (`DateOnly.FromDateTime`, `TimeSpan.FromMinutes`), and survives a DTO gaining a second source —
+    statement import is the realistic candidate — since **fields can't overload**, so two sources
+    would force a rename. If sources ever multiply, flip the pattern: move each projection to a
+    source-side `IQueryable` extension (`db.LedgerEntry.SelectTransactionLi()`) and let *location*
+    disambiguate while every member is named for its output.
+  - **`static readonly` field, not an expression-bodied property.** The tree is built once at type
+    init instead of per access, and it's immutable, so sharing one instance across concurrent request
+    handlers needs no thought. The speed difference is negligible (EF caches the compiled plan by
+    tree *shape* either way) — choose it for intent, not performance.
+- **`Expression<Func<…>>` vs `Func<…>` — extracting the mapping as a *method* compiles and breaks at
+  runtime.** `static TransactionLi ToLi(LedgerEntry e) => …` passed as `.Select(ToLi)` converts to a
+  **`Func`**, which doesn't match `Queryable.Select`; overload resolution falls through to
+  `Enumerable.Select` — legal, since `IQueryable<T>` also implements `IEnumerable<T>` — so EF stops
+  translating, materialises whole rows, maps client-side, and every unloaded navigation throws
+  `NullReferenceException`. Identical failure to the materialise-then-map trap above, in a new
+  disguise; typing an `IQueryable` extension's parameter as `IEnumerable` is a third. The startling
+  part of C#: the **same lambda syntax** compiles to either a delegate or a tree depending purely on
+  the target type. (SQLAlchemy's `User.name == "x"` and Django's `Q` capture intent the same way, via
+  operator overloading rather than the compiler.)
+- **Expression trees don't compose.** One expression can't invoke another — the provider sees an
+  opaque method call, not a subtree — without LINQKit or hand-rolled tree rewriting. So one flat
+  expression per response shape: a fuller `TransactionDto` gets its own, not one built from
+  `FromLedgerEntry`.
 
 ### Writes (the insert path)
 
@@ -322,16 +395,23 @@ dotnet build        # compile-check only
     `Kind`.
   - **`CashBack` must be non-negative** (`422` otherwise) — cash back is money coming back, so under
     the sign convention it is positive. Unlike `Amount`, this one *is* checkable without ground truth.
-- Next, before the next feature slice — two refactors the slice earned:
-  1. **Move the endpoints out of `Program.cs` into their own files.** Three endpoints inline is already
-     the ceiling; porting gets more expensive per endpoint added. Minimal APIs are grouped with
-     extension methods on `IEndpointRouteBuilder` (`app.MapTransactionEndpoints()`), optionally with
-     `MapGroup("/transactions")` for a shared prefix.
-  2. **Extract the shared `TransactionLi` projection.** It is currently duplicated verbatim between
-     `GET /transactions` and the POST's re-query, and `GET /transactions/{id}` would make three copies.
-     A `static Expression<Func<LedgerEntry, TransactionLi>>` passed to `.Select(…)` composes, because an
-     expression tree is data.
-- Then: **`GET /transactions/{id}`**, the natural place a fuller `TransactionDto` earns its keep, and
+- **Done: the two refactors the POST slice earned** (both on the `refactor-standards` branch, no
+  behaviour change — verified by re-running `GET /accounts`, `GET /transactions` and the `.http` POST
+  suite):
+  1. **Endpoints moved out of `Program.cs`** into `Api/Endpoints/{Account,Transaction}Endpoints.cs`,
+     one registrar per resource, leaving `Program.cs` at composition only. See *Endpoint
+     organization* above for the conventions and the three compiler silences it surfaced.
+  2. **The duplicated `TransactionLi` projection extracted** to
+     `TransactionLi.FromLedgerEntry`, consumed by both call sites. See *DTOs & projections* for the
+     naming rationale and the `Func`-vs-`Expression` trap.
+- **Known gap, not yet fixed: `GET /transactions` has no `GroupId` filter** — it returns every
+  group's rows. Harmless while only the seeded dev group exists, wrong the moment there are two, and
+  invisible until then. The write path *does* filter correctly (each guard checks `(Id, GroupId)`).
+  A `.OwnedBy(groupId)` `IQueryable` extension is the shape to reach for when this is fixed: the
+  predicate will appear in every query in the app and has to become "the authenticated group"
+  everywhere at once when auth lands, so a single chokepoint makes a missing filter visible at a
+  glance. Tracked in `TODO.md`.
+- Next: **`GET /transactions/{id}`**, the natural place a fuller `TransactionDto` earns its keep, and
   **`GET /merchants` + `GET /categories`**, which the entry form needs in order to send resolved ids —
   see the category-id note below. Merchant find-or-insert against the master list moves to
   `POST /merchants` when that slice lands.

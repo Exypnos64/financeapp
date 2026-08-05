@@ -68,10 +68,17 @@ financeapp/
 
 ## Status
 
-The foundation stack is in place: the SQL Server schema (`MSSQL/`) publishes to a Docker container,
-the .NET API (`Api/`) serves `GET /accounts` from it, and the SvelteKit frontend (`SvelteKit/`)
-renders as a skeleton. Next up is the first **vertical slice** — wiring the frontend to the API so
-account data flows DB → API → screen end-to-end. See `TODO.md` for the full backlog.
+The foundation stack is in place and **data flows end-to-end in both directions**. The SQL Server
+schema (`MSSQL/`) publishes to a Docker container. The .NET API (`Api/`) serves `GET /accounts`,
+`GET /transactions` — which projects a transaction plus its account, merchant and category into a
+DTO carrying related **names** rather than foreign keys — and `POST /transactions`, a validated
+insert returning `201` with the created row. The SvelteKit frontend (`SvelteKit/`) renders the
+accounts and transactions lists from the API, with money and dates formatted for display.
+
+Next is the **transaction-entry** slice: the API accepts a POST, so what remains is the form that
+drives it, plus the `GET /merchants` and `GET /categories` endpoints it needs to submit resolved ids.
+There is still **no authentication**, so writes are scoped to the seeded development group. Styling
+is deliberately minimal until the screens settle. See `TODO.md` for the full backlog.
 
 > A `HANDOFF.md` (a dated "picking this up" snapshot) will be added if/when the project reaches a
 > point where someone else — or a future self after a long gap — needs to take it over.
