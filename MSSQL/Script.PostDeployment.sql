@@ -9,15 +9,15 @@ IF NOT EXISTS (SELECT 1 FROM dbo.DefaultCategorySet)
 BEGIN
   SET IDENTITY_INSERT dbo.DefaultCategorySet ON;
   INSERT INTO dbo.DefaultCategorySet (Id, Name) VALUES
-    (1, 'Income'),
-    (2, 'Gifts & Donations'),
-    (3, 'Shopping'),
-    (4, 'Food & Dining'),
-    (5, 'Bills & Utilities'),
-    (6, 'Housing'),
-    (7, 'Auto & Transport'),
-    (8, 'Travel & Lifestyle'),
-    (9, 'Children'),
+    ( 1, 'Income'),
+    ( 2, 'Gifts & Donations'),
+    ( 3, 'Shopping'),
+    ( 4, 'Food & Dining'),
+    ( 5, 'Bills & Utilities'),
+    ( 6, 'Housing'),
+    ( 7, 'Auto & Transport'),
+    ( 8, 'Travel & Lifestyle'),
+    ( 9, 'Children'),
     (10, 'Education'),
     (11, 'Health & Wellness'),
     (12, 'Financial'),
@@ -246,9 +246,9 @@ IF NOT EXISTS (SELECT 1 FROM dbo.LedgerEntry)
 BEGIN
   INSERT INTO dbo.LedgerEntry (AccountId, MerchantId, GroupId, CategoryId, Amount, UserDate, LastModifiedUtc) VALUES
     (1, 1, 1, @Col, 505.00, '2025-02-21 00:00:00 -06:00', @CurUtc),
-    (1, 1, 1, @Col, -5.99, '2025-03-21 00:00:00 -06:00', @CurUtc),
-    (1, 1, 1, @Col, -38.73, '2025-03-26 00:00:00 -06:00', @CurUtc),
-    (1, 1, 1, @Col, -173.22, '2025-03-31 00:00:00 -06:00', @CurUtc),
-    (1, 1, 1, @Col, -65, '2025-04-06 00:00:00 -06:00', @CurUtc),
-    (1, 1, 1, @Col, 500, '2025-04-13 00:00:00 -06:00', @CurUtc);
+    (1, 1, 1, @Col, -5.99, '2025-03-21 00:00:00 -05:00', @CurUtc),
+    (1, 1, 1, @Col, -38.73, '2025-03-26 00:00:00 -05:00', @CurUtc),
+    (1, 1, 1, @Col, -173.22, '2025-03-31 00:00:00 -05:00', @CurUtc),
+    (1, 1, 1, @Col, -65, '2025-04-06 00:00:00 -05:00', @CurUtc),
+    (1, 1, 1, @Col, 500, '2025-04-13 00:00:00 -05:00', @CurUtc);
 END
