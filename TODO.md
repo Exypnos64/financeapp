@@ -27,6 +27,11 @@ what was produced (the code/doc/artifact). That turns this file into a lightweig
   eslint). Renders the default page with working HMR via `npm run dev`; does not call the API yet.
   See `.claude/docs/frontend.md`. (Talking to the API is the next item.)
 - [ ] **Show transaction data** end-to-end (DB → API → UI).
+- [ ] **Scope read endpoints to the owning group.** `GET /transactions` returns every group's rows —
+  no `GroupId` filter. Silent while only the seeded dev group exists. Fix as a reusable
+  `.OwnedBy(groupId)` `IQueryable` extension rather than a per-query predicate, since every query
+  needs it and all of them must switch to the authenticated group at once when auth lands. See
+  `.claude/docs/api.md` → Current state.
 
 ## Core features
 
