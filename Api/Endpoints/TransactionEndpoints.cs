@@ -10,16 +10,7 @@ public static class TransactionEndpoints
     public static void MapTransactionEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/transactions", async (FinanceDbContext db) => 
-            await db.LedgerEntry.Select(e => new TransactionLi
-            {
-                Id = e.Id,
-                Account = e.Account.Name,
-                Merchant = e.Merchant.Name ?? e.Merchant.Merchant.Name,
-                Category = e.Category.Name,
-                Amount = e.Amount,
-                CashBack = e.CashBack,
-                UserDate = e.UserDate
-            }).ToListAsync()
+            await db.LedgerEntry.Select(TransactionLi.FromLedgerEntry).ToListAsync()
         );
 
         app.MapPost("/transactions", async (CreateTransactionRequest req, FinanceDbContext db) =>
@@ -63,16 +54,7 @@ public static class TransactionEndpoints
 
             var created = await db.LedgerEntry
                 .Where(l => l.Id == entry.Id)
-                .Select(l => new TransactionLi
-                {
-                    Id = l.Id,
-                    Account = l.Account.Name,
-                    Merchant = l.Merchant.Name ?? l.Merchant.Merchant.Name,
-                    Category = l.Category.Name,
-                    Amount = l.Amount,
-                    CashBack = l.CashBack,
-                    UserDate = l.UserDate
-                })
+                .Select(TransactionLi.FromLedgerEntry)
                 .SingleAsync();
 
             return Results.Created($"/transactions/{entry.Id}", created);
