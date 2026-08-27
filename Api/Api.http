@@ -119,4 +119,9 @@ Content-Type: application/json
     "amount": -13.00
 }
 
-###
+### Get Categories
+
+GET {{Api_HostAddress}}/categories
+Accept: application/json
+
+### 
