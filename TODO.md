@@ -11,6 +11,11 @@ what was produced (the code/doc/artifact). That turns this file into a lightweig
 - [x] Establish Claude Code working setup (`CLAUDE.md`, `.claude/docs/`, git & lint config).
   Done: `CLAUDE.md`, `.claude/docs/{project-vision,tech-stack,learning-approach}.md`, `.gitignore`,
   `.gitattributes`, `.markdownlint-cli2.jsonc`, `CLAUDE-SETUP-GUIDE.md`.
+- [x] **One-key local startup** — start the DB container, API, and frontend dev server together with
+  debuggers attached, instead of three terminals.
+  Done: committed `.vscode/launch.json` (`API (.NET)`, `Web (SvelteKit)`, `Full stack` compound) and
+  `.vscode/tasks.json` (`db: start`, `api: build`, `api: prelaunch`). See
+  `.claude/docs/editor-debugging.md`; `SETUP.md` step 14.
 
 ## Foundations (learn-as-we-go, roughly in order)
 

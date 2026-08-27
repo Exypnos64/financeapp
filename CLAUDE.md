@@ -99,6 +99,18 @@ git); the once-only `docker run` (afterward `docker start financedb`); publishin
 `MSSQL\PublishSqlPackage.ps1`; SSMS connection settings (`localhost,1433` + trust the self-signed
 cert); and a verify query. All commands run from the repo root.
 
+### `.claude/docs/editor-debugging.md`
+
+**Read when**: working on anything in `.vscode/`, or when the question is how to *run/debug* the
+stack from the editor rather than from a terminal.
+
+**Contains**: the committed VS Code debug setup — `launch.json` (the `API (.NET)` and
+`Web (SvelteKit)` configurations plus the `Full stack` compound) and `tasks.json` (`db: start`,
+`api: build`, the `api: prelaunch` composite); the F5 workflow; and the three gotchas —
+**the API launch config duplicates `launchSettings.json`'s port/environment and the two drift
+silently**, compound entries start with **no ordering** (why Docker is a `preLaunchTask`, not a
+compound entry), and `docker start` returns before SQL Server accepts connections.
+
 ### `.claude/docs/development-process.md`
 
 **Read when**: planning the order of work, scoping a phase, or setting expectations about how the

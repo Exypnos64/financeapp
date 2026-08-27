@@ -35,6 +35,7 @@ are committed to the repo on purpose — Claude sessions are their primary reade
 | Development process | `.claude/docs/development-process.md` | How the build proceeds: order of work, backtracking to expect, anticipated problems. |
 | API layer | `.claude/docs/api.md` | The .NET API as built: layout, EF Core read/map mode, endpoints, connection string + secrets. |
 | Frontend layer | `.claude/docs/frontend.md` | The SvelteKit app as built: layout, tooling, how to run it, conventions, styling/testing decisions. |
+| Editor & debugging | `.claude/docs/editor-debugging.md` | The committed `.vscode/` debug setup: the F5 full-stack workflow and its gotchas. |
 | Learning approach | `.claude/docs/learning-approach.md` | The teaching contract that governs how Claude helps on this project. |
 | Claude setup guide | `CLAUDE-SETUP-GUIDE.md` | How this whole `CLAUDE.md` + `.claude/` setup was built (reusable). |
 
@@ -52,6 +53,7 @@ financeapp/
 ├── MSSQL/                    # SQL Server schema-as-code (dacpac project, one file per object)
 ├── Api/                      # .NET web API (minimal APIs, EF Core read/map against the dacpac)
 ├── SvelteKit/                # SvelteKit frontend (TypeScript, Vite)
+├── .vscode/                  # Debug setup, committed: launch.json (F5 full-stack) + tasks.json
 └── .claude/                  # Claude-facing setup (committed)
     ├── docs/                 # On-demand reference docs
     │   ├── project-vision.md
@@ -59,7 +61,8 @@ financeapp/
     │   ├── development-process.md
     │   ├── learning-approach.md
     │   ├── api.md
-    │   └── frontend.md
+    │   ├── frontend.md
+    │   └── editor-debugging.md
     ├── agents/               # Custom subagents (none yet — see README there)
     ├── tools/                # Deterministic helper scripts (none yet)
     ├── notes/                # Disposable session scratch

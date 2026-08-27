@@ -38,6 +38,11 @@ dotnet build        # compile-check only
   curl). Use the **http** port for local calls to dodge the self-signed-cert trust prompt.
 - `dotnet run <file>.cs` inside a project folder is swallowed by the project — for a file-based
   scratch app use `dotnet run --file <file>.cs` (see `learning-approach.md`).
+- **Or press F5 in VS Code** — the `API (.NET)` configuration starts the DB container, builds, and
+  attaches the debugger; the `Full stack` compound adds the frontend. See
+  [`editor-debugging.md`](editor-debugging.md). **Sync hazard**: that config launches `Api.dll`
+  directly, which bypasses `launchSettings.json`, so the port and environment are duplicated in
+  `.vscode/launch.json`. Change the port here and you must change it there too — nothing warns you.
 
 ## Endpoint organization
 

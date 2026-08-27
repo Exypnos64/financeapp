@@ -1,0 +1,67 @@
+{
+    "version": "0.2.0",
+    "compounds": [
+        {
+            // Starts the DB (via the API's prelaunch task), the .NET API, and
+            // the SvelteKit dev server. Stopping any one of them stops all.
+            "name": "Full stack (DB + API + Web)",
+            "configurations": [
+                "API (.NET)",
+                "Web (SvelteKit)"
+            ],
+            "stopAll": true,
+            "presentation": {
+                "group": "1-compound",
+                "order": 1
+            }
+        }
+    ],
+    "configurations": [
+        {
+            "name": "API (.NET)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "api: prelaunch",
+            "program": "${workspaceFolder}/Api/bin/Debug/net10.0/Api.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/Api",
+            "stopAtEntry": false,
+            // Duplicates the "http" profile in Api/Properties/launchSettings.json.
+            // Launching the dll directly bypasses launchSettings, so the URL and
+            // environment have to be set here. Keep the two in sync.
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development",
+                "ASPNETCORE_URLS": "http://localhost:5046"
+            },
+            "presentation": {
+                "group": "2-individual",
+                "order": 1
+            }
+        },
+        {
+            "name": "Web (SvelteKit)",
+            "type": "node",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/SvelteKit",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": [
+                "run",
+                "dev"
+            ],
+            "console": "integratedTerminal",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            // Opens the browser once Vite prints its "Local:" line.
+            "serverReadyAction": {
+                "action": "openExternally",
+                "pattern": "Local:\\s+(https?://\\S+)",
+                "uriFormat": "%s"
+            },
+            "presentation": {
+                "group": "2-individual",
+                "order": 2
+            }
+        }
+    ]
+}
