@@ -1,0 +1,54 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            // Starts the already-created SQL Server container. Safe to re-run:
+            // `docker start` on a running container is a no-op that exits 0.
+            // If the container doesn't exist yet, see SETUP.md step 6.
+            "label": "db: start",
+            "type": "shell",
+            "command": "docker start financedb",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "api: build",
+            "type": "process",
+            "command": "dotnet",
+            "args": [
+                "build",
+                "${workspaceFolder}/Api/Api.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile",
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            }
+        },
+        {
+            // Composite prelaunch step: bring the DB up, then build. Sequential
+            // so a Docker failure stops the launch before the build runs.
+            "label": "api: prelaunch",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "db: start",
+                "api: build"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "web: install",
+            "type": "shell",
+            "command": "npm install",
+            "options": {
+                "cwd": "${workspaceFolder}/SvelteKit"
+            },
+            "problemMatcher": []
+        }
+    ]
+}
