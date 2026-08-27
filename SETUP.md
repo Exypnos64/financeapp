@@ -153,3 +153,25 @@ npm run check     # type-check (.svelte files included) via svelte-check
 npm run lint      # prettier --check + eslint
 npm run format    # auto-format with prettier
 ```
+
+---
+
+### 14. Shortcut: start the whole stack from VS Code
+
+Once the one-time setup above is done (steps 1–12), you don't have to run three commands in three
+terminals each session. Open the repo in VS Code, press **F5**, and pick
+**Full stack (DB + API + Web)**. That starts the `financedb` container, builds and runs the API with
+the debugger attached, starts the Vite dev server, and opens the browser — with working breakpoints
+in both C# and server-side SvelteKit code.
+
+This needs the **C# Dev Kit** extension (`ms-dotnettools.csdevkit`); the Svelte extension is
+recommended for editing. The configuration lives in the committed `.vscode/launch.json` and
+`.vscode/tasks.json` — see [`.claude/docs/editor-debugging.md`](.claude/docs/editor-debugging.md)
+for how it's wired and what to watch out for.
+
+Two caveats worth knowing up front:
+
+- **Publishing the database is still manual.** F5 only *starts* the container; it does not run
+  `MSSQL\PublishSqlPackage.ps1`. Re-publish (step 8) yourself after any schema change.
+- **Give SQL Server a few seconds.** The container reports "started" before the engine accepts
+  connections, so the very first request after a cold start can fail — just retry it.

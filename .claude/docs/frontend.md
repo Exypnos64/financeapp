@@ -53,6 +53,10 @@ npm run format    # prettier --write (auto-format)
   it. `npx vite dev` works because `npx` looks there first.
 - **TS gotcha**: `tsc` can't see inside `.svelte` files. The checker is **`svelte-check`**, wired to
   `npm run check`. "Does it type-check?" = `npm run check`, not `tsc`.
+- **Or press F5 in VS Code** — the `Web (SvelteKit)` configuration runs `npm run dev` under the Node
+  debugger (so breakpoints work in `+page.server.ts` / `hooks.server.ts`, not just via browser
+  devtools) and opens the browser when Vite is ready. The `Full stack` compound starts the DB
+  container and API alongside it. See [`editor-debugging.md`](editor-debugging.md).
 
 ## Conventions (settling)
 

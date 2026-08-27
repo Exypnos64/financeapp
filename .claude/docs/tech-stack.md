@@ -58,6 +58,8 @@ honest ones exist, and don't assume any prior web-dev or DB-design practice.
 - **OS**: Windows 11. Primary shell is **PowerShell**; a Bash tool is also available (POSIX
   syntax). Windows path separators and CRLF apply — see `.gitattributes`.
 - **Working directory**: `C:\DevOps\financeapp`.
+- **Editor**: **VS Code**, with the C# Dev Kit and Svelte extensions. The debug setup is committed in
+  `.vscode/` so the whole stack starts with **F5** — see [`editor-debugging.md`](editor-debugging.md).
 - The foundation stack has landed: the DB (`MSSQL/`, containerized), the .NET API (`Api/`), and the
   SvelteKit frontend (`SvelteKit/`). As each new piece lands, record concrete setup steps (SDK
   versions, connection-string pattern, how to run each piece) in dedicated docs under
@@ -84,6 +86,11 @@ honest ones exist, and don't assume any prior web-dev or DB-design practice.
   learn yarn on the team project; pnpm is the modern-fast alternative if ever wanted). Add-ons kept
   minimal (**prettier + eslint**); **Tailwind and testing deferred** deliberately. Renders and
   hot-reloads (`npm run dev`); does not talk to the API yet.
+- **Local run/debug orchestration**: **VS Code `launch.json` + `tasks.json`**, committed in
+  `.vscode/` (full detail in [`editor-debugging.md`](editor-debugging.md)). One `Full stack` compound
+  starts the DB container, API, and dev server together. Note this is *not* a step toward the
+  deferred Docker work above — it orchestrates **host** processes plus a `docker start`, and adds no
+  container networking. Docker Compose was not adopted for the same reason.
 
 ## Open questions to resolve as we build
 
