@@ -223,8 +223,21 @@ END
 IF NOT EXISTS (SELECT 1 FROM dbo.GroupMerchant WHERE Id = 1)
 BEGIN
   SET IDENTITY_INSERT dbo.GroupMerchant ON;
-  INSERT INTO dbo.GroupMerchant (Id, GroupId, MerchantId, Name)
-    VALUES (1, 1, 1, NULL);
+  INSERT INTO dbo.GroupMerchant (Id, GroupId, MerchantId, Name) VALUES
+    (1, 1, 1, NULL);    -- Unknown
+  SET IDENTITY_INSERT dbo.GroupMerchant OFF;
+END;
+
+IF NOT EXISTS (SELECT 1 FROM dbo.GroupMerchant WHERE Id != 1)
+BEGIN
+  SET IDENTITY_INSERT dbo.GroupMerchant ON;
+  INSERT INTO dbo.GroupMerchant (Id, GroupId, MerchantId, Name) VALUES
+      (2, 1, 11, NULL)  -- Chick-fil-A
+    , (3, 1, 49, NULL)  -- PayPal
+    , (4, 1, 53, NULL)  -- Rhodes 101
+    , (5, 1, 56, NULL)  -- Spotify
+    , (6, 1, 60, NULL)  -- Taco Bell
+    , (7, 1, 66, NULL); -- Walmart
   SET IDENTITY_INSERT dbo.GroupMerchant OFF;
 END;
 
