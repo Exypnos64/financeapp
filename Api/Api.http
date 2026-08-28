@@ -124,4 +124,9 @@ Content-Type: application/json
 GET {{Api_HostAddress}}/categories
 Accept: application/json
 
+### Get Merchants
+
+GET {{Api_HostAddress}}/merchants
+Accept: application/json
+
 ### 

@@ -36,5 +36,6 @@ app.UseCors(originPolicy);
 app.MapTransactionEndpoints();
 app.MapAccountEndpoints();
 app.MapCategoryEndpoints();
+app.MapMerchantEndpoints();
 
 app.Run();
