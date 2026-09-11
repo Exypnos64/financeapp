@@ -416,10 +416,38 @@ pipeline, "register these resources") rather than as the API's implementation.
   predicate will appear in every query in the app and has to become "the authenticated group"
   everywhere at once when auth lands, so a single chokepoint makes a missing filter visible at a
   glance. Tracked in `TODO.md`.
+- **Done: the picker endpoints the entry form needed** — `GET /merchants` and `GET /categories`,
+  each a `<Resource>Endpoints` registrar filtering on `GroupId == DevGroupId` from the start (unlike
+  `GET /transactions`, above). Both project inline rather than onto the DTO as a
+  `From<SourceEntity>` expression: one call site each, so the extraction hasn't been earned yet —
+  `POST /merchants` is what will earn it. What the two endpoints show:
+  - **The merchant/category tier asymmetry, made concrete.** `MerchantLi.Name` is
+    `m.Name ?? m.Merchant.Name` — inherit-by-NULL, so the group's override falls back to the master
+    row. `CategoryLi.Name` needs no fallback at all, because categories are copied into the group at
+    provisioning and `Category.Name` is therefore `NOT NULL`. Same two-tier idea, opposite mechanics.
+  - **Order by the same expression you select.** Ordering merchants by `m.Name` alone sorts the
+    overrides and leaves every inherited row in a `NULL` clump; the `ORDER BY` has to repeat the
+    `??` so EF emits the same `COALESCE`.
+  - **`CategoryLi` nests a `CategorySetLi`** (`{id, name, set: {id, name}}`) so the frontend can
+    build `<optgroup>` headers. Carrying the set **id** and not just its name is deliberate:
+    `CategorySet.Name` has no unique constraint, so grouping by name would silently merge two sets
+    that happen to share one. Ordering is set name → **set id** → category name, and that middle key
+    is what keeps two same-named sets from interleaving.
+  - **A projection is what emits the JOIN.** `c.Set.Name` traverses the navigation property and EF
+    turns it into a join; no `Include` is needed, and a correlated sub-query written by hand is both
+    unnecessary and easy to get wrong (a first attempt filtered the sub-query on `GroupId` but never
+    on `s.Id == c.SetId`, which would have given every category the same set name).
+  - **Two entity/schema nullability mismatches surfaced** the moment something traversed these
+    navigations: `Category.Set` was `CategorySet?` though `SetId` is `NOT NULL`, and
+    `CategorySet.DefaultId` was non-nullable `int` though the column is `NULL`. Both are the rule at
+    the top of this doc — **the FK's nullability and its navigation property's must agree** — and
+    neither fails at build.
+  - **Seed consequence**: a group starts with *no* adopted merchants, so `GET /merchants` initially
+    returned exactly one row (the seeded `'Unknown'` sentinel). The dev seed now adopts six master
+    merchants so the form has a usable dropdown; real adoption-on-write belongs to `POST /merchants`.
 - Next: **`GET /transactions/{id}`**, the natural place a fuller `TransactionDto` earns its keep, and
-  **`GET /merchants` + `GET /categories`**, which the entry form needs in order to send resolved ids —
-  see the category-id note below. Merchant find-or-insert against the master list moves to
-  `POST /merchants` when that slice lands.
+  **`POST /merchants`**, which takes over merchant find-or-insert against the master list and makes
+  the adoption flow real rather than seeded.
 - **Gotcha worth remembering when hand-writing test requests: a group's `Category` ids are not the
   `DefaultCategory` ids.** Provisioning inserts via `INSERT … SELECT` with no `ORDER BY`, so `IDENTITY`
   assigns ids in arbitrary join-output order — group 1's category `1` is `'Paycheck'`, not

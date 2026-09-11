@@ -109,7 +109,87 @@ API and renders the rows (DB → API → screen, end-to-end). What settled:
   `undefined`s (blank cells), not a compile error.
 - **CORS is handled on the API side** (see `api.md`); the frontend needs no CORS code.
 - **Still hardcoded** (dev convenience — revisit with config when a second environment exists): the
-  API base URL (`http://localhost:5046`) in `load`.
+  API base URL (`http://localhost:5046`), now a hand-declared `API_BASE` constant in three files.
+  `$env/static/public` is where it belongs; tracked in `TODO.md`. Note the constant was first named
+  `URL`, which **shadows the global `URL` class** inside that module — legal, invisible to
+  TypeScript, and a landmine for whoever later wants `new URL(...)`.
+
+## Writing to the API — form actions
+
+The transaction-entry slice writes back through a **form action** in `+page.server.ts`, chosen over
+a client-side `fetch` because it works without JS and because server-to-server calls sidestep CORS
+entirely.
+
+- **`+page.server.ts` is server-only**, and that is visible in the generated types: its `./$types`
+  exports `PageServerLoad`, `Actions`, and `ActionData` — and **no `PageLoad`**. The `$types` file is
+  generated per route from the files you actually created, so it mirrors your folder rather than
+  offering a fixed menu. A universal `load` in `+page.ts` runs on the server *and* again in the
+  browser; a server `load` runs only on the server, which is what keeps the API URL off the client.
+- **Shape**: `export const actions = { default: async ({ request, fetch }) => … } satisfies Actions;`
+  A `POST` to the route with no `?/name` lands on `default`, so `<form method="POST">` needs no
+  `action` attribute. Put `satisfies Actions` on the **object**, not on the handler.
+- **`await request.formData()`** returns `FormData`. Three things bite:
+  - `.get()` returns `FormDataEntryValue | null` — every value arrives as a **string**; form data has
+    no numbers.
+  - Blank optional inputs arrive as **`""`, not `null`** — the field is present, just empty. Sending
+    `""` where the API expects `decimal?` is a 400.
+  - **`Number("")` is `0`.** A blank cash-back field silently becomes `$0.00` — exactly the "zero
+    cashback vs. none recorded" distinction flagged under Display formatting. Convert to `null`
+    *first*, then to a number.
+- **`fetch` takes the URL first and everything else in an options object** — `method`, `headers`,
+  `body`. Omitting `Content-Type: application/json` gets **415 Unsupported Media Type** from ASP.NET,
+  which is a confusing error to chase because the body looks fine.
+- **`fail(status, payload)` is `return`ed; `redirect(303, location)` is called bare** (SvelteKit 2
+  does not use `throw`). 303 is the POST-then-GET convention, so a refresh doesn't resubmit.
+  **Never wrap the redirect in a `try`/`catch`** — it signals *by* throwing, so a `try` around the
+  action body catches its own redirect and turns a successful save into a mysterious 500.
+- **`ActionData` is the union of every value the action can return**, so two `fail` calls with
+  different payload shapes make `form.values` a type error on the page (`Property 'values' does not
+  exist on type '{ message: string; }'`). Keep every `fail` payload the same shape.
+- **The `fail` payload is the only thing that survives the round trip.** On failure SvelteKit re-runs
+  `load` and rebuilds the page, so anything not in that payload is gone and the user retypes the
+  form. `Object.fromEntries(formData)` grabs every submitted field in one line. Two traps when
+  feeding it back: the values are **strings** while `<option value={x.id}>` are **numbers**, so
+  `bind:value` compares strictly and silently blanks the select unless you `Number()` them — and the
+  `??` fallback has to come *before* the conversion, since `Number(undefined)` is `NaN`.
+- **`response.ok` beats a `switch` on status codes** — it's true for any 2xx, and enumerating codes
+  means everything unanticipated falls into `default`.
+
+### Timezones on write — the load-bearing part
+
+`<input type="datetime-local">` submits `"2026-09-11T14:30"` with **no offset**, but `UserDate` is
+`DATETIMEOFFSET` and `project-vision.md` requires the offset to be captured from the device. A
+server action cannot recover it — it's a different machine.
+
+The mechanism: the **visible picker** carries its own `name` (round-trips its own format on a failed
+submit) and a **hidden field** carries the value actually sent, one-way `value={derived}`. A `$state`
+holds the picker's value; a `$derived` builds the submitted string. This is the one place
+`bind:value` genuinely earns itself — the selects don't need it, since `name` is what submits.
+
+The conversion needs no date arithmetic at all: `"2026-09-11T14:30"` is **already local wall-clock in
+ISO field order**, so you only append seconds and an offset to get
+`"2026-09-11T14:30:00-05:00"`. The `Date` object exists solely to ask for the offset. Four traps:
+
+- **`getTimezoneOffset()` returns minutes to *add* to local to reach UTC** — US Central in summer
+  returns `300` and the string you want is `-05:00`. The sign is inverted.
+- **Take `Math.abs` of both hours and minutes** before padding; `padStart` only adds characters and
+  can't strip a `-`.
+- **Zones like `+05:30` and `+12:45` exist** — build from minutes, never assume whole hours.
+- **Ask the transaction's date for its offset, not `new Date()`.** Offsets are DST-dependent, so
+  entering a January transaction in September stamps `-05:00` on a date that was `-06:00`.
+
+**The failure mode that makes this worth documenting**: System.Text.Json does *not* reject an
+offset-less string. It parses it and silently applies the **server's** offset — and DST-correctly for
+that date (`"2026-01-15T14:30"` → `-06:00`, `"2026-07-15T14:30"` → `-05:00`). So while the browser and
+the API share a machine, sending the raw picker value and sending the correct offset produce
+**byte-identical rows for every date**. The bug is invisible locally and only appears once the API
+runs in another zone — a UTC container, or a deployed host. Inspecting stored rows cannot verify this
+code; only reading the request body can. A parser that fills in a default for ambiguous input is more
+dangerous than one that rejects it.
+
+**No-JS consequence**: the hidden field can only be populated by JS, so a no-script submit sends
+`""`. The action guards for it explicitly and returns its own `fail` — a message you wrote beats
+whatever .NET says about an unparseable `DateTimeOffset`.
 
 ## Display formatting
 
@@ -148,8 +228,25 @@ Formatting raw API values for humans is a **frontend** job (the API sends raw da
   a compile error — the type and the template have to move in lockstep.
 - `/` is still the default skeleton page; no styling yet (plain tables, per plain-CSS-first) — a
   scoped `<style>` pass (e.g. right-aligning numeric columns) is the deferred next polish.
-- Next: the transaction-entry slice — a `+page.server.ts` **form action** (chosen over client-side
-  `fetch`: works without JS, and server-to-server calls sidestep CORS preflight entirely), which
-  brings first contact with `request.formData()` where **every field arrives as a string** and empty
-  optional inputs arrive as `""` rather than `null`. Then: styling pass; move the hardcoded dev URL
-  (`http://localhost:5046`) to config when a second environment appears.
+- **Done: the transaction-entry slice** — `/transactions/new`, the first page that *writes*. A
+  `+page.server.ts` holds both halves: a `PageServerLoad` that fetches `/accounts`, `/categories`
+  and `/merchants` concurrently, and a `default` form action that POSTs to `/transactions` and then
+  `redirect`s to the list. See *Writing to the API — form actions* above for the mechanics; the
+  decisions worth remembering:
+  - **`Promise.all` over a literal tuple, not `.map()` over a URL list.** Both fetch concurrently,
+    but `Promise.all([a(), b()])` infers a **tuple** so each destructured result keeps its own type,
+    whereas `.map()` collapses to `Promise<any>[]` and the results become positionally
+    interchangeable with nothing to catch a swap.
+  - **The category `<select>` groups with `<optgroup>`**, built from `Map.groupBy(categories, c =>
+    c.set.id)` in a `$derived` (not a function called from the template, which recomputes every
+    render). Grouping by the `set` **object** does not work — `Map.groupBy` compares keys by
+    identity and every row's `set` is a distinct object after `JSON.parse`.
+  - **Hand-written response types are still unverified** — `Merchant`, `Category` and `CategorySet`
+    in `src/lib/types.ts` mirror the API by assertion, including `CategoryLi`'s nesting. Same
+    silent-`undefined` exposure as the read slices.
+  - **`npm run check` is the tool that catches this class of bug** — it found the `ActionData` union
+    error and seven `state_referenced_locally` warnings that `dotnet build`-style confidence would
+    have missed entirely.
+- Next: **styling pass** (plain scoped CSS; the entry form currently lays out with `<br>` tags),
+  then `use:enhance` for progressive enhancement — which will break the form's `$state` initializers
+  in the way those warnings describe. Both tracked in `TODO.md`.
