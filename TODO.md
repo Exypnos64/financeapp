@@ -36,12 +36,20 @@ what was produced (the code/doc/artifact). That turns this file into a lightweig
   `+page.server.ts` form action, closing the loop in both directions. Supporting work:
   `GET /merchants` + `GET /categories` picker endpoints, `Merchant`/`Category`/`CategorySet`
   frontend types, and seeded `GroupMerchant` rows. See `.claude/docs/{api,frontend}.md`.
-- [ ] **Scope read endpoints to the owning group.** `GET /transactions` returns every group's rows —
-  no `GroupId` filter. Silent while only the seeded dev group exists. Fix as a reusable
-  `.OwnedBy(groupId)` `IQueryable` extension rather than a per-query predicate, since every query
-  needs it and all of them must switch to the authenticated group at once when auth lands. See
-  `.claude/docs/api.md` → Current state. `const int DevGroupId = 1;` is now duplicated across four
-  handlers, which is the same pressure from the other direction.
+- [x] **Scope read endpoints to the owning group.** `GET /transactions` and `GET /accounts` returned
+  every group's rows — no `GroupId` filter — and `const int DevGroupId = 1;` was duplicated across
+  three handlers.
+  Done: `OwnedBy(groupId)`, a generic `IQueryable<T>` extension (`Api/Data/GroupOwnedQuery.cs`)
+  constrained to a new `IGroupOwned` marker interface (`Api/Entities/IGroupOwned.cs`, implemented by
+  the six group-owned entities), applied by all four read endpoints and by the three ownership guards
+  in `POST /transactions`; the duplicated constant collapsed into `Api/Data/TempDefaults.cs`. See
+  `.claude/docs/api.md` → Current state.
+- [ ] **Edit + delete a transaction** — the next slice. `GET /transactions/{id}`,
+  `PUT /transactions/{id}` and `DELETE /transactions/{id}`, plus an edit page on the frontend. First
+  use of EF **change tracking** (every query so far is read-only), route parameters, and the
+  `404`-vs-`422` split — keeping "doesn't exist" and "isn't yours" indistinguishable to the caller,
+  as the POST guards already do. Completes CRUD, which the later features all build on. Open design
+  call: one form component shared by create *and* edit, or two separate pages.
 - [ ] **Move the API base URL out of the source.** `http://localhost:5046` is now a hand-declared
   `API_BASE` constant in three frontend files. SvelteKit's `$env/static/public` is the home for it —
   note the server-only load could use `$env/static/private`, but the universal loads in `+page.ts`
