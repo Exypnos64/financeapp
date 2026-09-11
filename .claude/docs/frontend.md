@@ -247,6 +247,8 @@ Formatting raw API values for humans is a **frontend** job (the API sends raw da
   - **`npm run check` is the tool that catches this class of bug** — it found the `ActionData` union
     error and seven `state_referenced_locally` warnings that `dotnet build`-style confidence would
     have missed entirely.
-- Next: **styling pass** (plain scoped CSS; the entry form currently lays out with `<br>` tags),
-  then `use:enhance` for progressive enhancement — which will break the form's `$state` initializers
-  in the way those warnings describe. Both tracked in `TODO.md`.
+- Next: the **edit/delete slice** — an edit page backed by `GET`/`PUT`/`DELETE /transactions/{id}`,
+  which raises a real design call: one form component shared by create *and* edit, or two pages.
+  After that a **styling pass** (plain scoped CSS; the entry form currently lays out with `<br>`
+  tags), then `use:enhance` for progressive enhancement — which will break the form's `$state`
+  initializers in the way those warnings describe. All tracked in `TODO.md`.

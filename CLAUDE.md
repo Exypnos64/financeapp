@@ -74,7 +74,8 @@ to run it (ports, `curl`/`Invoke-RestMethod`); **EF Core in read/map mode with t
 sole schema authority (never generate EF migrations)**; entity/context conventions (namespaces,
 one file per entity in `Api/Entities/`, nullability mirrors the schema, singular `DbSet`s,
 composite-key config, map `DbSet`s per slice, navigation properties, and DTOs/projections in
-`Api/Contracts/`); connection-string + User-Secrets handling and the `,`-vs-`;`
+`Api/Contracts/`); the `IGroupOwned` + `OwnedBy(groupId)` group-scoping chokepoint every query goes
+through; connection-string + User-Secrets handling and the `,`-vs-`;`
 and `TrustServerCertificate` gotchas; and NuGet audit/pin notes.
 
 ### `.claude/docs/frontend.md`
@@ -172,8 +173,10 @@ with a `.claude/docs/tool-references/<tool>-guide.md` and indexed here.
   ownership/sharing unit; a *category* grouping is a `CategorySet` — never "CategoryGroup".
 - **The ownership unit is a `UserGroup`, not a user.** Financial accounts, merchant lists, and
   category lists all belong to a group; a solo user is a group of one. **No authentication exists
-  yet**, so writes hardcode the seeded dev group (`GroupId = 1`). Don't design membership, roles, or
-  account master-ownership until auth lands — see `project-vision.md`.
+  yet**, so every endpoint runs as the seeded dev group via `TempDefaults.DevGroupId` — one constant
+  in one file. **Every query filters through the `OwnedBy(groupId)` extension**, never a hand-written
+  `GroupId ==` predicate, so the switch to a real identity is a single change. Don't design
+  membership, roles, or account master-ownership until auth lands — see `project-vision.md`.
 - **Sign convention: spending is negative, transfers in are positive.** Credit/loan accounts flip
   **cosmetically at the display layer only** — never in the API or the DB.
 - **Never commit secrets** (connection strings, API keys, Plaid credentials) -- keep them out of

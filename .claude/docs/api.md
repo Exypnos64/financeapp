@@ -99,6 +99,19 @@ pipeline, "register these resources") rather than as the API's implementation.
   `MSSQL/Tables/` one-file-per-object convention). Each entity is a plain POCO whose properties
   mirror its table's columns. (Folder was renamed from `Models/` → `Entities/`: these classes are
   EF *entities*, and the name should say so rather than the generic MVC "Models".)
+- **Every group-owned entity implements `IGroupOwned`** (`Api/Entities/IGroupOwned.cs`) — a marker
+  interface declaring only `int GroupId { get; set; }`, implemented by the six entities whose table
+  carries a `GroupId` column (`Account`, `Category`, `CategorySet`, `GroupMember`, `GroupMerchant`,
+  `LedgerEntry`). It exists so the `OwnedBy(groupId)` query extension can be generic: a
+  `where T : IGroupOwned` constraint is how C# lets the filter reach `.GroupId` without knowing the
+  concrete type. **An interface, not a shared base class** — a base class also compiles and removes
+  the repeated property from all six entities, but it spends each entity's one inheritance slot on a
+  marker, misleads under the `I` prefix, and a common base class is exactly how EF represents
+  table-per-hierarchy inheritance.
+- **Query helpers that filter live in `Api/Data/` as `IQueryable<T>` extensions**, and must return
+  `IQueryable<T>` rather than a materialized list — the clause has to compose into the SQL.
+  Returning `List<T>` fetches every row and filters in memory, which looks identical from the
+  outside and is the same bug wearing a disguise.
 - **Nullability must match the schema exactly.** A `NULL` column → a nullable property (`int?`,
   `DateTime?`, `decimal?`, `string?`, no `required`); a `NOT NULL` column → non-nullable (and
   `required` is fine for `string`). Mismatches surface as materialization errors at read time, not
@@ -368,7 +381,9 @@ pipeline, "register these resources") rather than as the API's implementation.
 - Only `Account`, `LedgerEntry`, `GroupMerchant`, `Merchant`, and `Category` are exercised by an
   endpoint; the rest are mapped but not yet driven by one.
 - **No authentication yet.** Group is the ownership unit, but there's no current-user concept, so
-  writes will hardcode the seeded dev group (`GroupId = 1`) until auth lands.
+  every endpoint takes the seeded dev group from `TempDefaults.DevGroupId`
+  (`Api/Data/TempDefaults.cs`) until auth lands. Deliberately one constant in one file: the single
+  grep hit that has to change when a real identity exists.
 - **Done: the transaction-entry slice** — `POST /transactions` takes a `CreateTransactionRequest`,
   guards it, inserts, and returns `201` with a `Location` header and the created row projected into a
   `TransactionLi`. Guard order is cheap-local-first (`Notes` length, `CashBack` sign) then three
@@ -409,13 +424,20 @@ pipeline, "register these resources") rather than as the API's implementation.
   2. **The duplicated `TransactionLi` projection extracted** to
      `TransactionLi.FromLedgerEntry`, consumed by both call sites. See *DTOs & projections* for the
      naming rationale and the `Func`-vs-`Expression` trap.
-- **Known gap, not yet fixed: `GET /transactions` has no `GroupId` filter** — it returns every
-  group's rows. Harmless while only the seeded dev group exists, wrong the moment there are two, and
-  invisible until then. The write path *does* filter correctly (each guard checks `(Id, GroupId)`).
-  A `.OwnedBy(groupId)` `IQueryable` extension is the shape to reach for when this is fixed: the
-  predicate will appear in every query in the app and has to become "the authenticated group"
-  everywhere at once when auth lands, so a single chokepoint makes a missing filter visible at a
-  glance. Tracked in `TODO.md`.
+- **Done: group scoping through a single chokepoint.** `GET /transactions` and `GET /accounts` had
+  no `GroupId` filter at all and returned every group's rows — harmless while only the seeded dev
+  group exists, wrong the moment there are two, and invisible until then. (The write path always
+  filtered correctly; each guard checked `(Id, GroupId)`.) Fixed with **`OwnedBy(groupId)`**, an
+  `IQueryable<T>` extension in `Api/Data/GroupOwnedQuery.cs` constrained to `IGroupOwned` (see
+  *Entity + context conventions*), now used by all four read endpoints and by the three ownership
+  guards in `POST /transactions`. The predicate belongs in every query in the app and has to become
+  "the authenticated group" everywhere at once when auth lands, so one chokepoint is what makes a
+  missing filter visible at a glance. Two things worth remembering:
+  - **`OwnedBy`, not `IsOwned`.** An `Is…` name promises a `bool` in C#; this returns a query.
+  - **What the verification actually proved.** Hitting `/accounts` after the change confirmed EF's
+    model still binds — the interface constraint didn't break the mapping — but *not* that the
+    filter discriminates. Every row still belongs to group 1, so a correct filter and a broken one
+    return identical results. A hand-inserted `GroupId = 2` row is what would test it for real.
 - **Done: the picker endpoints the entry form needed** — `GET /merchants` and `GET /categories`,
   each a `<Resource>Endpoints` registrar filtering on `GroupId == DevGroupId` from the start (unlike
   `GET /transactions`, above). Both project inline rather than onto the DTO as a
@@ -445,9 +467,14 @@ pipeline, "register these resources") rather than as the API's implementation.
   - **Seed consequence**: a group starts with *no* adopted merchants, so `GET /merchants` initially
     returned exactly one row (the seeded `'Unknown'` sentinel). The dev seed now adopts six master
     merchants so the form has a usable dropdown; real adoption-on-write belongs to `POST /merchants`.
-- Next: **`GET /transactions/{id}`**, the natural place a fuller `TransactionDto` earns its keep, and
-  **`POST /merchants`**, which takes over merchant find-or-insert against the master list and makes
-  the adoption flow real rather than seeded.
+- Next: **the edit/delete slice** — `GET /transactions/{id}` (the natural place a fuller
+  `TransactionDto` earns its keep), `PUT /transactions/{id}` and `DELETE /transactions/{id}`. It is
+  the first use of **EF change tracking**: every query so far has been read-only, so loading an
+  entity, mutating it and letting `SaveChangesAsync()` work out the `UPDATE` is new ground. It also
+  brings route parameters and the `404`-vs-`422` split, with the ownership half now supplied by
+  `OwnedBy` — "doesn't exist" and "isn't yours" must stay indistinguishable to the caller, same rule
+  as the POST guards. **`POST /merchants`** (merchant find-or-insert against the master list, making
+  adoption real rather than seeded) is the slice after.
 - **Gotcha worth remembering when hand-writing test requests: a group's `Category` ids are not the
   `DefaultCategory` ids.** Provisioning inserts via `INSERT … SELECT` with no `ORDER BY`, so `IDENTITY`
   assigns ids in arbitrary join-output order — group 1's category `1` is `'Paycheck'`, not

@@ -1,12 +1,10 @@
 namespace Api.Entities;
 
-public class Account
+public class Account : IGroupOwned
 {
     public int Id { get; set; }
 
-
     public int GroupId { get; set; }
-
     public UserGroup Group { get; set; } = null!;
 
     public byte TypeId { get; set; }
