@@ -7,8 +7,8 @@ public class CategorySet
     public int GroupId { get; set; }
     public UserGroup Group { get; set; } = null!;
 
-    public int DefaultId { get; set; }
-    public DefaultCategorySet Default { get; set; } = null!;
+    public int? DefaultId { get; set; } = null;
+    public DefaultCategorySet? Default { get; set; } = null;
 
     public required string Name { get; set; }
 }

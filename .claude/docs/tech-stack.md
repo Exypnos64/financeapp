@@ -45,13 +45,16 @@ Kubernetes-style concerns unprompted.
 Summarized here; full detail in [`learning-approach.md`](learning-approach.md).
 
 - **Comfortable**: Python, JavaScript — but JS as *blackbox QA automation scripting*, **not** web
-  development.
+  development, and both at the **language level, not the library level** (syntax and design
+  principles, not the ecosystem). **No DB work in Python** of any kind.
 - **Rusty**: Java, from a long time ago.
 - **New**: C#, .NET, relational database design, SQL, API design/hosting, Docker, front-end web
   development.
 
-Practical implication: relate C#/.NET, SQL, and Docker concepts back to Python/JS analogies where
-honest ones exist, and don't assume any prior web-dev or DB-design practice.
+Practical implication: explain tooling at **overview altitude** — what each piece is for and roughly
+how it fits, not an exhaustive per-package tour — and relate C#/.NET, SQL, and Docker concepts back
+to Python/JS analogies only where an honest *language/core-tooling* one exists (`pip` → NuGet, yes;
+SQLAlchemy → EF Core, no). Don't assume any prior web-dev or DB practice.
 
 ## Environment facts
 

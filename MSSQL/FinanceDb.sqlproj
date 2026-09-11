@@ -14,5 +14,6 @@
          of the schema model (Build Remove) so it isn't compiled as an object. -->
     <PostDeploy Include="Script.PostDeployment.sql" />
     <Build Remove="Script.PostDeployment.sql" />
+    <Build Remove="DevScripts\**\*.sql" />
   </ItemGroup>
 </Project>

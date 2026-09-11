@@ -119,4 +119,14 @@ Content-Type: application/json
     "amount": -13.00
 }
 
-###
+### Get Categories
+
+GET {{Api_HostAddress}}/categories
+Accept: application/json
+
+### Get Merchants
+
+GET {{Api_HostAddress}}/merchants
+Accept: application/json
+
+### 

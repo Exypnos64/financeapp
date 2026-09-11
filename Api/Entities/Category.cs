@@ -11,7 +11,7 @@ public class Category
     public DefaultCategory? Default { get; set; } = null;
     
     public int SetId { get; set; }
-    public CategorySet? Set { get; set; } = null;
+    public CategorySet Set { get; set; } = null!;
 
     public required string Name { get; set; }
     public required string IconName { get; set; }

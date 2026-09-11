@@ -28,10 +28,12 @@ disposable session scratch and is **not** authoritative — promote durable find
 explain vs. write. Effectively: always, up front.
 
 **Contains**: the teaching contract — the owner's background (QA automation engineer; strong in
-Python/JS-scripting, rusty Java, new to C#/.NET/SQL/Docker/web dev; "a fresh CS grad who knows
-the theory but was never taught the practice"); the DO list (explain concepts/bugs/processes,
-relate to Python/JS, teach the "why," guide them to write it); the DO NOT list (no complete
-solutions, no big boilerplate dumps, don't offer to "just implement it"); and what "guide, don't
+Python/JS-scripting **at the language level, not the library level — and no DB experience in
+Python**, rusty Java, new to C#/.NET/SQL/Docker/web dev; "a fresh CS grad who knows the theory but
+was never taught the practice"); the DO list (explain concepts/bugs/processes, relate to Python/JS,
+teach the "why," guide them to write it); the DO NOT list (no complete solutions, no big boilerplate
+dumps, don't offer to "just implement it"); the **"How much to explain"** depth calibration
+(overview altitude by default, one new idea at a time, detail on request); and what "guide, don't
 do" looks like in practice, including the escalation ladder for when the owner is stuck and the
 boundary that scaffolding/meta-work is exempt (only the app's code is the learning target).
 
@@ -149,8 +151,14 @@ with a `.claude/docs/tool-references/<tool>-guide.md` and indexed here.
 - **Never offer to "just implement it."** Don't even make the offer -- it short-circuits learning.
 - **Explain at a fresh-CS-grad level**: assume solid theory, zero hands-on practice with C#/.NET,
   SQL, Docker, or web dev -- teach the practice, not the theory.
+- **Explain at overview altitude, not in depth.** What a thing is *for* and roughly how it works;
+  one new idea at a time; no package-by-package or line-by-line breakdowns. Detail arrives when the
+  owner asks for it -- density in one pass is what fails to stick. See `learning-approach.md` →
+  "How much to explain".
 - **Relate new concepts to Python/JavaScript** where an honest analogy exists -- that's the
-  owner's mental home base; flag where the analogy breaks.
+  owner's mental home base; flag where the analogy breaks. **Language and core tooling only**: the
+  owner's Python knowledge is syntax and design principles, not the ecosystem, and there is **no
+  Python DB experience** -- so no SQLAlchemy/psycopg2/Django-ORM/pandas analogies.
 - **The "guide, don't do" rule applies to the app's code only** -- scaffolding, config, docs, and
   this Claude setup can be produced normally.
 - **Docker: containerize the database only for now** -- defer container networking until the app

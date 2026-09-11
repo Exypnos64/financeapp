@@ -31,12 +31,33 @@ what was produced (the code/doc/artifact). That turns this file into a lightweig
   Done: `SvelteKit/` app (`sv` CLI minimal template, TypeScript, Svelte 5, Vite; npm; prettier +
   eslint). Renders the default page with working HMR via `npm run dev`; does not call the API yet.
   See `.claude/docs/frontend.md`. (Talking to the API is the next item.)
-- [ ] **Show transaction data** end-to-end (DB → API → UI).
+- [x] **Show transaction data** end-to-end (DB → API → UI).
+  Done: `/transactions` and `/accounts` render API data; `/transactions/new` writes back through a
+  `+page.server.ts` form action, closing the loop in both directions. Supporting work:
+  `GET /merchants` + `GET /categories` picker endpoints, `Merchant`/`Category`/`CategorySet`
+  frontend types, and seeded `GroupMerchant` rows. See `.claude/docs/{api,frontend}.md`.
 - [ ] **Scope read endpoints to the owning group.** `GET /transactions` returns every group's rows —
   no `GroupId` filter. Silent while only the seeded dev group exists. Fix as a reusable
   `.OwnedBy(groupId)` `IQueryable` extension rather than a per-query predicate, since every query
   needs it and all of them must switch to the authenticated group at once when auth lands. See
-  `.claude/docs/api.md` → Current state.
+  `.claude/docs/api.md` → Current state. `const int DevGroupId = 1;` is now duplicated across four
+  handlers, which is the same pressure from the other direction.
+- [ ] **Move the API base URL out of the source.** `http://localhost:5046` is now a hand-declared
+  `API_BASE` constant in three frontend files. SvelteKit's `$env/static/public` is the home for it —
+  note the server-only load could use `$env/static/private`, but the universal loads in `+page.ts`
+  run in the browser too and therefore need the `PUBLIC_` prefix.
+- [ ] **Progressively enhance the entry form** with `use:enhance` (submit without a full page
+  reload). Blocked on a real trap: the form's `$state` initializers read `form?.values?.…`, which
+  only works today *because* a native POST is a full navigation that rebuilds the component.
+  `use:enhance` updates props in place, so those initializers stop re-running — which is exactly
+  what the seven `state_referenced_locally` warnings were pointing at.
+- [ ] **Decide whether duplicate category-set names are allowed.** `CategorySet.Name` has no unique
+  constraint, so one group can hold two sets called "Bills" — which would merge into a single
+  `<optgroup>` if the UI ever grouped by name. The dropdown groups by `SetId` specifically to avoid
+  depending on the answer. If duplicates *are* a data-entry mistake, `UQ_CategorySet_GroupId_Name`
+  is the constraint that says so.
+- [ ] **Styling pass.** Every page is unstyled HTML; the entry form lays out with `<br>` tags. Plain
+  scoped CSS first (per `frontend.md`), once the screens settle.
 
 ## Core features
 
