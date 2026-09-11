@@ -9,10 +9,8 @@ public static class CategoryEndpoints
     public static void MapCategoryEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/categories", async (FinanceDbContext db) => {
-            const int DevGroupId = 1; // stands in for the authenticated identity
-
             var categories = await db.Category
-                .Where(c => c.GroupId == DevGroupId)
+                .OwnedBy(TempDefaults.DevGroupId)
                 .OrderBy(c => c.Set.Name).ThenBy(c => c.SetId).ThenBy(c => c.Name)
                 .Select(c => new CategoryLi
                 {

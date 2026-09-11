@@ -1,6 +1,6 @@
 namespace Api.Entities;
 
-public class GroupMerchant
+public class GroupMerchant : IGroupOwned
 {
     public int Id { get; set; }
 

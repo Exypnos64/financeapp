@@ -7,6 +7,6 @@ public static class AccountEndpoints
 {
     public static void MapAccountEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/accounts", async (FinanceDbContext db) => await db.Account.ToListAsync());
+        app.MapGet("/accounts", async (FinanceDbContext db) => await db.Account.OwnedBy(TempDefaults.DevGroupId).ToListAsync());
     }
 }

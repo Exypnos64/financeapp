@@ -1,6 +1,6 @@
 namespace Api.Entities;
 
-public class LedgerEntry
+public class LedgerEntry : IGroupOwned
 {
     public int Id { get; set; }
 

@@ -1,6 +1,6 @@
 namespace Api.Entities;
 
-public class Category
+public class Category : IGroupOwned
 {
     public int Id { get; set; }
 

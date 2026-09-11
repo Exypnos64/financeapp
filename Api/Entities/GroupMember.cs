@@ -3,7 +3,7 @@ namespace Api.Entities;
 using Microsoft.EntityFrameworkCore;
 
 [PrimaryKey("UserId", "GroupId")]
-public class GroupMember
+public class GroupMember : IGroupOwned
 {
     public int UserId { get; set; }
     public EndUser User { get; set; } = null!;
