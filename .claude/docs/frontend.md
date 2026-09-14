@@ -247,8 +247,38 @@ Formatting raw API values for humans is a **frontend** job (the API sends raw da
   - **`npm run check` is the tool that catches this class of bug** — it found the `ActionData` union
     error and seven `state_referenced_locally` warnings that `dotnet build`-style confidence would
     have missed entirely.
-- Next: the **edit/delete slice** — an edit page backed by `GET`/`PUT`/`DELETE /transactions/{id}`,
-  which raises a real design call: one form component shared by create *and* edit, or two pages.
-  After that a **styling pass** (plain scoped CSS; the entry form currently lays out with `<br>`
-  tags), then `use:enhance` for progressive enhancement — which will break the form's `$state`
-  initializers in the way those warnings describe. All tracked in `TODO.md`.
+- **Done: the edit/delete slice** — `/transactions/[id]`, backed by `GET`/`PUT`/`DELETE
+  /transactions/{id}`, plus an Edit link on every row of the list. The decisions worth remembering:
+  - **Named form actions are HTTP endpoints, not functions.** The first attempt imported `actions`
+    from `./proxy+page.server` (a Vite build artifact, not an importable module) and wired it to
+    `onclick` — `+page.server.ts` never ships to the browser, which is the whole point of `.server`
+    in the filename. A named action is addressed by **query string**: `POST /transactions/2?/delete`.
+  - **`formaction` is what lets one form have two destinations.** Plain HTML: the `<form>` carries
+    `action="?/update"` and the Delete button overrides it with `formaction="?/delete"`. No JS, and
+    it works before any JS loads.
+  - **SvelteKit refuses to mix a `default` action with named ones** — it 500s on page load, and the
+    error names neither the button nor the action you just added. Renaming `default` to `update` is
+    mandatory, not stylistic.
+  - **`formnovalidate` on Delete.** The form's `required` fields are validated on *any* submit
+    button, so without it the browser silently blocks a delete whenever a field is blank — "throw
+    this away" shouldn't require the form to be valid first.
+  - **`[id]`, not `[slug]`.** The directory name *is* the property name (`params.id`), and a "slug"
+    means a URL-friendly text key, not an integer primary key. Renaming is cheapest immediately.
+  - **Edit is a link, not a button.** `<a href={resolve(...)}>` is navigation, so middle-click,
+    open-in-new-tab and the back button all work for free; a `<button>` would need a handler to do
+    the same job worse.
+  - **`reduceDate` is the inverse of `transformDate`.** A `datetime-local` input cannot accept an
+    offset, so a stored `DATETIMEOFFSET` has to be stripped back to `YYYY-MM-DDTHH:mm` to prefill the
+    picker, then have the offset reattached on submit. **Still duplicated**: `transformDate` and
+    `categoryGroups` exist in both pages. A first pass extracted them to `src/lib/dates.ts`, but
+    neither page was switched over to import from it, so the file was dropped rather than landed
+    unused — pure functions with no markup and no state don't belong in a `.svelte` file, and the
+    extraction happens for real alongside the shared component.
+- Next: extracting a shared **`TransactionForm` component** — the two pages are now near-identical.
+  **Settled**: the component owns the `<form>` and takes an `action` prop, with the read-only block
+  and the button group toggled by separate flags. It carries a known trap: `$state(prop)` captures
+  once, so navigating `/transactions/2` → `/transactions/3` would reuse the instance and keep the old
+  values — the same root cause as the `use:enhance` warnings, and `{#key}` is the answer. The
+  server-side form parsing is duplicated too and belongs under `src/lib/server/`. After that a
+  **styling pass** (plain scoped CSS; the forms still lay out with `<br>` tags). All tracked in
+  `TODO.md`.

@@ -87,10 +87,17 @@ Read endpoints are now **scoped to the owning group** through a single `OwnedBy(
 extension, so no endpoint hands back another group's rows. There is still **no authentication**, so
 every request runs as the seeded development group.
 
-Next is the **edit/delete slice** — `GET`/`PUT`/`DELETE /transactions/{id}` plus an edit page —
-which completes CRUD and is the first use of EF change tracking. A styling pass (every screen is
-still unstyled HTML) and progressive enhancement of the entry form follow. See `TODO.md` for the
-full backlog.
+The **edit/delete slice** is complete, so transactions are now full CRUD:
+`GET`/`PUT`/`DELETE /transactions/{id}` back an edit page at `/transactions/[id]`, reachable from an
+Edit link on every row of the transactions list. This was the first use of EF **change tracking** —
+loading an entity, mutating it, and letting `SaveChangesAsync()` work out the `UPDATE` — and of the
+`404`-vs-`422` split, where "doesn't exist" and "isn't yours" deliberately look identical to the
+caller.
+
+Next is extracting a shared **`TransactionForm` component**, since the create and edit pages are now
+near-duplicates, along with the server-side form parsing they also share. A styling pass (every
+screen is still unstyled HTML) and progressive enhancement of the entry form follow. See `TODO.md`
+for the full backlog.
 
 > A `HANDOFF.md` (a dated "picking this up" snapshot) will be added if/when the project reaches a
 > point where someone else — or a future self after a long gap — needs to take it over.

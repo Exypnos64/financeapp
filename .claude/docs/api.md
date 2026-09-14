@@ -467,14 +467,47 @@ pipeline, "register these resources") rather than as the API's implementation.
   - **Seed consequence**: a group starts with *no* adopted merchants, so `GET /merchants` initially
     returned exactly one row (the seeded `'Unknown'` sentinel). The dev seed now adopts six master
     merchants so the form has a usable dropdown; real adoption-on-write belongs to `POST /merchants`.
-- Next: **the edit/delete slice** — `GET /transactions/{id}` (the natural place a fuller
-  `TransactionDto` earns its keep), `PUT /transactions/{id}` and `DELETE /transactions/{id}`. It is
-  the first use of **EF change tracking**: every query so far has been read-only, so loading an
-  entity, mutating it and letting `SaveChangesAsync()` work out the `UPDATE` is new ground. It also
-  brings route parameters and the `404`-vs-`422` split, with the ownership half now supplied by
-  `OwnedBy` — "doesn't exist" and "isn't yours" must stay indistinguishable to the caller, same rule
-  as the POST guards. **`POST /merchants`** (merchant find-or-insert against the master list, making
-  adoption real rather than seeded) is the slice after.
+- **Done: the edit/delete slice** — `GET`, `PUT` and `DELETE /transactions/{id}`, completing CRUD.
+  All three filter `.OwnedBy(...)` **before** the id predicate, so another group's row and a
+  nonexistent one return the same bare `404`. What the slice taught:
+  - **Change tracking only watches entities, not projections.** The first `PUT` loaded via
+    `.Select(TransactionDto.FromLedgerEntry)`, mutated the resulting DTO, and called
+    `SaveChangesAsync()` — which found nothing dirty, returned `0`, and **succeeded silently**. EF
+    tracks instances that came back from a query *as entities*; a projection builds a fresh object it
+    has never seen. The fix is to drop the `.Select` entirely on the write path. A symptom worth
+    recognizing: needing to change a DTO's `init` accessors to `set` is the compiler pointing at this.
+  - **`Expression<Func<>>` is a description, not a function.** `TransactionDto.FromLedgerEntry`
+    cannot be invoked — it is the AST EF walks to emit SQL. `.Compile()` converts it to a runnable
+    delegate but emits IL each call. `PUT` returns `204 NoContent` instead, so no projection is
+    needed on the response path at all.
+  - **C# has no structural typing.** Sharing validation between POST and PUT first tried a generic
+    constrained to two record types (`CS0406` — only one class constraint is legal), then a `record`
+    holding the common fields (nothing converts to it). The answer is an **interface**,
+    `ITransactionInput`, implemented by both request records; the existing auto-properties satisfy it
+    with no bodies to write. It is a plain **non-generic** parameter — generics buy nothing when the
+    method returns `IResult?` regardless of what came in.
+  - **`CS1593: Delegate 'RequestDelegate' does not take N arguments` is a red herring.** `MapGet` and
+    friends are overloaded on `(string, RequestDelegate)` and `(string, Delegate)`. When a lambda's
+    `return` statements disagree on a type, inference fails, the `Delegate` overload drops out, and
+    the compiler reports a parameter-count mismatch against the fallback. The real fix is always to
+    make every `return` in the lambda produce `IResult`.
+  - **`required` is what makes a missing field a `400`.** Model binding runs *before* the handler, so
+    a body missing `userDate` never reaches `ValidateTransaction` — which is the correct
+    `400`-vs-`422` line: `400` means unparseable into the shape, `422` means parsed but unacceptable.
+    `UpdateTransactionRequest` initially had no `required` at all, so a `PUT` omitting `amount` would
+    have silently written `0`. **Open**: `builder.Services.AddProblemDetails()` would turn the
+    framework's own `400`s into RFC 7807 JSON instead of a dev stack trace.
+  - **A request record should carry only what the client may set.** `OriginalStatement` and
+    `OriginalDate` are import provenance and `GroupId` is ownership plumbing; any of them present on
+    the update record means an edit form that omits the field silently nulls the column.
+  - **Minimal-API parameter binding is by name and type, never position.** Route match is by
+    parameter *name* against the pattern, services come from the DI container, and whatever is left
+    over becomes the JSON body. Renaming a parameter away from its route segment doesn't error — it
+    falls through to query-string binding and yields `0`. Convention (not enforced): route, then
+    query, then body, then services, then `CancellationToken`.
+- Next: **`POST /merchants`** — merchant find-or-insert against the master list, making adoption real
+  rather than seeded. That is also what earns the extraction of `MerchantLi`'s projection onto the
+  DTO, which today has a single call site.
 - **Gotcha worth remembering when hand-writing test requests: a group's `Category` ids are not the
   `DefaultCategory` ids.** Provisioning inserts via `INSERT … SELECT` with no `ORDER BY`, so `IDENTITY`
   assigns ids in arbitrary join-output order — group 1's category `1` is `'Paycheck'`, not

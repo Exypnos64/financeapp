@@ -44,12 +44,30 @@ what was produced (the code/doc/artifact). That turns this file into a lightweig
   the six group-owned entities), applied by all four read endpoints and by the three ownership guards
   in `POST /transactions`; the duplicated constant collapsed into `Api/Data/TempDefaults.cs`. See
   `.claude/docs/api.md` → Current state.
-- [ ] **Edit + delete a transaction** — the next slice. `GET /transactions/{id}`,
-  `PUT /transactions/{id}` and `DELETE /transactions/{id}`, plus an edit page on the frontend. First
-  use of EF **change tracking** (every query so far is read-only), route parameters, and the
-  `404`-vs-`422` split — keeping "doesn't exist" and "isn't yours" indistinguishable to the caller,
-  as the POST guards already do. Completes CRUD, which the later features all build on. Open design
-  call: one form component shared by create *and* edit, or two separate pages.
+- [x] **Edit + delete a transaction** — completes CRUD.
+  Done: `GET`/`PUT`/`DELETE /transactions/{id}` in `Api/Endpoints/TransactionEndpoints.cs`, the
+  first use of EF **change tracking**; an `ITransactionInput` interface and a shared
+  `ValidateTransaction` reused by POST and PUT; `TransactionDto` (the full row, for the edit form)
+  and `UpdateTransactionRequest` (editable fields only) in `Api/Contracts/`. Frontend:
+  `/transactions/[id]` with `?/update` and `?/delete` named actions, `formaction` +
+  `formnovalidate` on the Delete button, and an Edit link on every list row. See
+  `.claude/docs/{api,frontend}.md`.
+- [ ] **Extract a shared `TransactionForm` component.** `/transactions/new` and
+  `/transactions/[id]` are now near-identical — the same selects, inputs and `<optgroup>` logic in
+  two files, so every styling change would land twice. **Settled**: the component owns the `<form>`
+  element and takes an `action` prop; the read-only block (`originalStatement`, `originalDate`,
+  `lastModifiedUtc`) and the submit/delete button group toggle **separately** — one flag would do
+  today, but two keeps the pages independently customizable. Lives at
+  `src/lib/components/TransactionForm.svelte`. Carries the trap below.
+- [ ] **Re-initialize the form when the transaction id changes.** Same root cause as the
+  `use:enhance` item: `$state(data.transaction.accountId)` captures a value **once**. Today every
+  arrival is a full page load, so it works. Once the fields live in one component, navigating
+  `/transactions/2` → `/transactions/3` reuses the instance and only updates props — the
+  initializers never re-run, so you would edit transaction 3 with transaction 2's values loaded. A
+  `{#key}` block around the component is the Svelte answer; settle it when the component lands.
+- [ ] **Extract the duplicated form-action logic.** `new/+page.server.ts` and `[id]/+page.server.ts`
+  share their `formData` parsing, number coercion and `userDate` guard verbatim. Belongs under
+  `src/lib/server/`, which SvelteKit refuses to let client code import.
 - [ ] **Move the API base URL out of the source.** `http://localhost:5046` is now a hand-declared
   `API_BASE` constant in three frontend files. SvelteKit's `$env/static/public` is the home for it —
   note the server-only load could use `$env/static/private`, but the universal loads in `+page.ts`
