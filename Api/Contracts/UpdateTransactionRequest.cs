@@ -1,6 +1,6 @@
 namespace Api.Contracts;
 
-public record CreateTransactionRequest : ITransactionInput
+public record UpdateTransactionRequest : ITransactionInput
 {
     public required int AccountId { get; init; }
     public required int MerchantId { get; init; }

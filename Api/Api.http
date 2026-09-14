@@ -25,6 +25,11 @@ Content-Type: application/json
     "notes": "Test Transaction"
 }
 
+### Delete Entry
+
+DELETE {{Api_HostAddress}}/transactions/9
+Accept: application/json
+
 ### Bad Account Id
 
 POST {{Api_HostAddress}}/transactions
@@ -128,5 +133,59 @@ Accept: application/json
 
 GET {{Api_HostAddress}}/merchants
 Accept: application/json
+
+### Get transaction by Id
+
+GET {{Api_HostAddress}}/transactions/2
+Accept: application/json
+
+### Bad transaction Id
+
+GET {{Api_HostAddress}}/transactions/999
+Accept: application/json
+
+### Modify Spotify entry
+
+PUT {{Api_HostAddress}}/transactions/2
+Content-Type: application/json
+
+{
+  "accountId": 1,
+  "merchantId": 6,
+  "categoryId": 12,
+  "amount": -12.99,
+  "cashBack": null,
+  "userDate": "2026-09-01T00:00:00-05:00",
+  "notes": "Unborking the borked"
+}
+
+### Fix Spotify entry
+
+PUT {{Api_HostAddress}}/transactions/2
+Content-Type: application/json
+
+{
+  "accountId": 1,
+  "merchantId": 6,
+  "categoryId": 12,
+  "amount": -5.99,
+  "cashBack": null,
+  "userDate": "2025-03-21T00:00:00-05:00",
+  "notes": null
+}
+
+### Bad Spotify entry
+
+PUT {{Api_HostAddress}}/transactions/2
+Content-Type: application/json
+
+{
+  "accountId": 1,
+  "merchantId": 6,
+  "categoryId": 12,
+  "cashBack": null,
+  "userDate": "2026-09-01T00:00:00-05:00",
+  "notes": "Unborking the borked"
+}
 
 ### 
