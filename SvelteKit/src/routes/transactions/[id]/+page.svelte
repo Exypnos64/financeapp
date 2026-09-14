@@ -4,19 +4,19 @@
     let { data, form }: PageProps = $props();
     // const moneyFormat = Intl.NumberFormat("en-US", { style: "currency", "currency": "USD" });
     // svelte-ignore state_referenced_locally
-    let account = $state(Number(form?.values?.accountId ?? ''));
+    let account = $state(Number(form?.values?.accountId ?? data.transaction.accountId));
     // svelte-ignore state_referenced_locally
-    let merchant = $state(Number(form?.values?.merchantId ?? data.merchants.find(m => m.name === "Unknown")?.id));
+    let merchant = $state(Number(form?.values?.merchantId ?? data.transaction.merchantId));
     // svelte-ignore state_referenced_locally
-    let category = $state(Number(form?.values?.categoryId ?? 0));
+    let category = $state(Number(form?.values?.categoryId ?? data.transaction.categoryId));
     // svelte-ignore state_referenced_locally
-    let amount = $state(form?.values?.amount);
+    let amount = $state(form?.values?.amount ?? data.transaction.amount);
     // svelte-ignore state_referenced_locally
-    let cashBack = $state(form?.values?.cashBack);
+    let cashBack = $state(form?.values?.cashBack ?? data.transaction.cashBack);
     // svelte-ignore state_referenced_locally
-    let setDate = $state(String(form?.values?.datePicker ?? ''));
+    let setDate = $state(String(form?.values?.datePicker ?? reduceDate(data.transaction.userDate)));
     // svelte-ignore state_referenced_locally
-    let notes = $state(String(form?.values?.notes ?? ''));
+    let notes = $state(String(form?.values?.notes ?? data.transaction.notes ?? ''));
 
 
     let categoryDropdown = $derived(categoryGroups(data.categories));
@@ -30,6 +30,7 @@
 
     function transformDate(date: string): string {
         if (date === '') return '';
+        // console.log(`Transform before: ${date}`);
 
         let offsetMin = new Date(date).getTimezoneOffset();
         let offsetHr = Math.trunc(offsetMin / 60);
@@ -39,12 +40,41 @@
         const hrStr = Math.abs(offsetHr).toString().padStart(2, "0");
         const minStr = Math.abs(offsetMin).toString().padStart(2, "0");
         // set seconds when date picker supports it
-        return date + `:00${sign}${hrStr}:${minStr}`;
+        const newDate = date + `:00${sign}${hrStr}:${minStr}`;
+        // console.log(`Transform after:  ${newDate}`);
+        return newDate;
     }
+
+    function reduceDate(date: string): string {
+        if (date === '') return '';
+
+        const pad = (num: number) => String(num).padStart(2, '0');
+        const dateObj = new Date(date);
+
+        const year = dateObj.getFullYear();
+        const month = pad(dateObj.getMonth() + 1);
+        const day = pad(dateObj.getDate());
+        const hours = pad(dateObj.getHours());
+        const minutes = pad(dateObj.getMinutes());
+        
+        const newDate = `${year}-${month}-${day}T${hours}:${minutes}`;
+        // console.log(`Reduced date:     ${newDate}`);
+        return newDate;
+    }
+
 </script>
 
 <div>
-    <form method="POST">
+    <form method="POST" action="?/update">
+        <span>Original Statement:</span>
+        <pre id="originalStatement" style="display: inline;">{data.transaction.originalStatement}</pre><br><br>
+
+        <span>Original Date:</span>
+        <pre id="originalDate" style="display: inline;">{data.transaction.originalDate}</pre><br><br>
+
+        <span>Last Modified Date (UTC):</span>
+        <pre id="lastModifiedUtc" style="display: inline;">{data.transaction.lastModifiedUtc}</pre><br><br>
+
         <label for="account">Account:</label>
         <select required name="accountId" id="account" bind:value={account}>
             {#each data.accounts as a (a.id)}
@@ -84,9 +114,6 @@
         <textarea name="notes" id="notes" style="height: 75px; width: 200px" value={notes}></textarea><br><br>
 
         <button name="submit" type="submit">Submit</button>
+        <button name="delete" formaction="?/delete" formnovalidate>Delete</button>
     </form>
-
-    {#if form?.message}
-    <p>{form.message}</p>
-    {/if}
 </div>
