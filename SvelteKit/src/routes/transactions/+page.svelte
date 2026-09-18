@@ -27,7 +27,7 @@
                 <td>{moneyFormat.format(transaction.amount)}</td>
                 <td>{transaction.cashBack ? moneyFormat.format(transaction.cashBack) : ""}</td>
                 <td>{new Date(transaction.userDate).toLocaleDateString("en-US", { day: "2-digit", "month": "2-digit", "year": "2-digit" })}</td>
-                <td><a href={resolve(`/transactions/${transaction.id}`)}>Edit</a></td>
+                <td><a href={resolve(`/transactions/${transaction.id}/edit`)}>Edit</a></td>
             </tr>
             {/each}
         </tbody>
