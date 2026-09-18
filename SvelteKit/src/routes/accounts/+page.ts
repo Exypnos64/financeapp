@@ -1,9 +1,9 @@
 import type { PageLoad } from './$types';
 import type { Account } from '$lib';
-import { PUBLIC_API_BASE } from '$env/static/public';
+import { ApiLoader } from '$lib';
 
 export const load: PageLoad = async ({ fetch }) => {
-    const response = await fetch(`${PUBLIC_API_BASE}/accounts`);
-    const data: Account[] = await response.json();
+    const api = new ApiLoader(fetch);
+    const data = await api.getJson<Account[]>("/accounts");
     return { accounts: data };
 }
