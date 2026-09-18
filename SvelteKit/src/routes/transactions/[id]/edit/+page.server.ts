@@ -1,7 +1,7 @@
 import type { Actions, PageServerLoad } from './$types';
 import type { Account, Category, Merchant, TransactionDto } from '$lib';
 import { fail, redirect } from '@sveltejs/kit';
-const API_BASE = "http://localhost:5046";
+import { PUBLIC_API_BASE } from '$env/static/public';
 
 export const load: PageServerLoad = async({ fetch, params }) => {
     const getJson = async <T>(url: string): Promise<T> => {
@@ -11,10 +11,10 @@ export const load: PageServerLoad = async({ fetch, params }) => {
     };
 
     const [accounts, categories, merchants, transaction] = await Promise.all([
-            getJson<Account[]>(`${API_BASE}/accounts`),
-            getJson<Category[]>(`${API_BASE}/categories`),
-            getJson<Merchant[]>(`${API_BASE}/merchants`),
-            getJson<TransactionDto>(`${API_BASE}/transactions/${params.id}`),
+            getJson<Account[]>(`${PUBLIC_API_BASE}/accounts`),
+            getJson<Category[]>(`${PUBLIC_API_BASE}/categories`),
+            getJson<Merchant[]>(`${PUBLIC_API_BASE}/merchants`),
+            getJson<TransactionDto>(`${PUBLIC_API_BASE}/transactions/${params.id}`),
         ]);
 
     return { accounts, categories, merchants, transaction };
@@ -43,7 +43,7 @@ export const actions = {
             notes: notes || null
         };
 
-        const response = await fetch(`${API_BASE}/transactions/${params.id}`, {
+        const response = await fetch(`${PUBLIC_API_BASE}/transactions/${params.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(transaction),
@@ -60,7 +60,7 @@ export const actions = {
         }
     },
     delete: async ({ request, fetch, params }) => {
-        const response = await fetch(`${API_BASE}/transactions/${params.id}`, {
+        const response = await fetch(`${PUBLIC_API_BASE}/transactions/${params.id}`, {
             method: "DELETE",
             headers: { "Accept": "application/json" },
         });

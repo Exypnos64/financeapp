@@ -1,7 +1,7 @@
 import type { Actions, PageServerLoad } from './$types';
 import type { Account, Category, Merchant } from '$lib';
 import { fail, redirect } from '@sveltejs/kit';
-const API_BASE = "http://localhost:5046";
+import { PUBLIC_API_BASE } from '$env/static/public';
 
 export const load: PageServerLoad = async ({ fetch }) => {
     const getJson = async <T>(url: string): Promise<T> => {
@@ -11,9 +11,9 @@ export const load: PageServerLoad = async ({ fetch }) => {
     };
 
     const [accounts, categories, merchants] = await Promise.all([
-        getJson<Account[]>(`${API_BASE}/accounts`),
-        getJson<Category[]>(`${API_BASE}/categories`),
-        getJson<Merchant[]>(`${API_BASE}/merchants`),
+        getJson<Account[]>(`${PUBLIC_API_BASE}/accounts`),
+        getJson<Category[]>(`${PUBLIC_API_BASE}/categories`),
+        getJson<Merchant[]>(`${PUBLIC_API_BASE}/merchants`),
     ]);
 
     return { accounts, categories, merchants };
@@ -41,7 +41,7 @@ export const actions = {
             notes: notes || null
         };
 
-        const response = await fetch(`${API_BASE}/transactions`, {
+        const response = await fetch(`${PUBLIC_API_BASE}/transactions`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(transaction),
