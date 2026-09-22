@@ -1,7 +1,7 @@
 import type { Actions, PageServerLoad } from './$types';
 import type { Account, Category, Merchant, TransactionDto } from '$lib';
 import { ApiLoader } from '$lib';
-import { fail, redirect } from '@sveltejs/kit';
+import { handleTransactionResponse, validateTransaction } from '$lib/server/transactions';
 
 export const load: PageServerLoad = async({ fetch, params }) => {
     const api = new ApiLoader(fetch);
@@ -18,51 +18,24 @@ export const load: PageServerLoad = async({ fetch, params }) => {
 export const actions = {
     update: async ({ request, fetch, params }) => {
         const form = await request.formData();
+        const validation = validateTransaction(form);
+
+        if (!validation.ok)
+            return validation.failure;
+
         const api = new ApiLoader(fetch);
+        const response = await api.sendJson(`/transactions/${params.id}`, "PUT", validation.body);
 
-        const userDate = form.get("userDate");
-        if (!userDate) return fail(422, {
-            message: "Please choose a date.",
-            values: Object.fromEntries(form)
-        });
-
-        const cashBack = form.get("cashBack");
-        const notes = form.get("notes");
-
-        const transaction = {
-            accountId: Number(form.get("accountId")),
-            merchantId: Number(form.get("merchantId")),
-            categoryId: Number(form.get("categoryId")),
-            amount: Number(form.get("amount")),
-            cashBack: cashBack ? Number(cashBack) : null,
-            userDate: userDate,
-            notes: notes || null
-        };
-
-        const response = await api.sendJson(`/transactions/${params.id}`, "PUT", transaction);
-
-        if (response.ok) {
-            redirect(303, "/transactions");
-        }
-        else {
-            return fail(response.status, {
-                message: await response.text(),
-                values: Object.fromEntries(form)
-            });
-        }
+        const handled = await handleTransactionResponse(response, form);
+        if (handled)
+            return handled;
     },
-    delete: async ({ request, fetch, params }) => {
+    delete: async ({ fetch, params }) => {
         const api = new ApiLoader(fetch);
         const response = await api.sendJson(`/transactions/${params.id}`, "DELETE")
 
-        if (response.ok) {
-            redirect(303, "/transactions");
-        }
-        else {
-            return fail(response.status, {
-                message: await response.text(),
-                values: Object.fromEntries(await request.formData())
-            });
-        }
+        const handled = await handleTransactionResponse(response);
+        if (handled)
+            return handled;
     }
 } satisfies Actions;

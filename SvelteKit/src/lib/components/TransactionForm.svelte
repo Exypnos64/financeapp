@@ -1,7 +1,6 @@
 <script lang="ts">
-    import type { Account, Category, Merchant, TransactionDto } from '$lib';
-    type Form = { message: string | undefined, values: Record<string, FormDataEntryValue> };
-    type Props = { accounts: Account[], categories: Category[], merchants: Merchant[], transaction?: TransactionDto, form: Form | null, action?: string, showReadOnly?: boolean, showDelete?: boolean };
+    import type { Account, Category, Merchant, TransactionDto, TransactionFormFailure } from '$lib';
+    type Props = { accounts: Account[], categories: Category[], merchants: Merchant[], transaction?: TransactionDto, form: TransactionFormFailure | null, action?: string, showReadOnly?: boolean, showDelete?: boolean };
 
     let { accounts, categories, merchants, transaction, form, action = '', showReadOnly = false, showDelete = false }: Props = $props();
     // const moneyFormat = Intl.NumberFormat("en-US", { style: "currency", "currency": "USD" });
@@ -12,9 +11,9 @@
     // svelte-ignore state_referenced_locally
     let category = $state(Number(form?.values?.categoryId ?? transaction?.categoryId ?? 0));
     // svelte-ignore state_referenced_locally
-    let amount = $state(Number(form?.values?.amount ?? transaction?.amount));
+    let amount = $state(form?.values?.amount ?? transaction?.amount);
     // svelte-ignore state_referenced_locally
-    let cashBack = $state(Number(form?.values?.cashBack ?? transaction?.cashBack));
+    let cashBack = $state(form?.values?.cashBack ?? transaction?.cashBack);
     // svelte-ignore state_referenced_locally
     let setDate = $state(String(form?.values?.datePicker ?? reduceDate(transaction?.userDate ?? '')));
     // svelte-ignore state_referenced_locally
@@ -104,17 +103,17 @@
     </select><br><br>
 
     <label for="amount">Amount:</label>
-    <input required type="number" step="0.0001" name="amount" id="amount" value={amount}><br><br>
+    <input required type="number" step="0.0001" name="amount" id="amount" bind:value={amount}><br><br>
 
     <label for="date">Date:</label>
     <input required type="datetime-local" name="datePicker" bind:value={setDate} id="date">
     <input type="hidden" name="userDate" value={submitDate}><br><br>
 
     <label for="cashBack">Cash Back:</label>
-    <input type="number" step="0.0001" name="cashBack" id="cashBack" value={cashBack}><br><br>
+    <input type="number" step="0.0001" name="cashBack" id="cashBack" bind:value={cashBack}><br><br>
 
     <label for="notes">Notes:</label><br>
-    <textarea name="notes" id="notes" style="height: 75px; width: 200px" value={notes}></textarea><br><br>
+    <textarea name="notes" id="notes" style="height: 75px; width: 200px" bind:value={notes}></textarea><br><br>
 
     <button name="submit" type="submit">Submit</button>
     {#if showDelete}
