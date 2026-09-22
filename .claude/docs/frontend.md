@@ -68,6 +68,15 @@ npm run format    # prettier --write (auto-format)
 - **Svelte 5 runes**: reactivity is **explicit**. A plain `let` is *not* reactive — mutable state
   that drives the UI must be declared with the **`$state()`** rune (`let count = $state(0)`), then
   reassigned normally. Values that never change stay `const` (no rune).
+- **Form inputs use `bind:value`, never one-way `value={x}`.** A one-way `value=` sends state to the
+  DOM and never back, so what the user typed lives *only* in the DOM and any re-render can overwrite
+  it from stale state. This cost two debugging sessions and survived a commit: typing an amount, then
+  touching the date picker, silently blanked the amount — the date field was bound, so changing it
+  triggered the render that re-asserted the unbound fields. Unlike React, where `value=` plus an
+  `onChange` is the normal controlled input, in Svelte **`bind:` *is* the controlled input**.
+- **Never seed `$state` with `Number(undefined)`** — that is `NaN`, not `0` or empty. `NaN` is also
+  the one value not equal to itself, so any "has this changed?" guard always reports a change. Put
+  the `??` fallback *before* the conversion.
 - **Scoped styles**: a component's `<style>` block applies only to that component by default.
 
 ## Styling
@@ -108,10 +117,10 @@ API and renders the rows (DB → API → screen, end-to-end). What settled:
   the frontend type *and* the template must change in lockstep — otherwise you get silent
   `undefined`s (blank cells), not a compile error.
 - **CORS is handled on the API side** (see `api.md`); the frontend needs no CORS code.
-- **Still hardcoded** (dev convenience — revisit with config when a second environment exists): the
-  API base URL (`http://localhost:5046`), now a hand-declared `API_BASE` constant in three files.
-  `$env/static/public` is where it belongs; tracked in `TODO.md`. Note the constant was first named
-  `URL`, which **shadows the global `URL` class** inside that module — legal, invisible to
+- **The API base URL is `PUBLIC_API_BASE`**, read from a **committed** `SvelteKit/.env` and
+  referenced in exactly one file (`src/lib/api.ts`). See *Shared modules* below for why it is
+  committed and why the constant no longer appears in route files. Historical note: it was first
+  named `URL`, which **shadows the global `URL` class** inside that module — legal, invisible to
   TypeScript, and a landmine for whoever later wants `new URL(...)`.
 
 ## Writing to the API — form actions
@@ -190,6 +199,56 @@ dangerous than one that rejects it.
 **No-JS consequence**: the hidden field can only be populated by JS, so a no-script submit sends
 `""`. The action guards for it explicitly and returns its own `fail` — a message you wrote beats
 whatever .NET says about an unparseable `DateTimeOffset`.
+
+## Shared modules — `$lib` and `$lib/server`
+
+Everything reusable lives under `src/lib/`, and **which subtree it lives in is a boundary, not a
+filing preference**:
+
+- **`$lib/`** — importable by anything, including code that runs in the browser: `types.ts`,
+  `api.ts`, `components/`.
+- **`$lib/server/`** — SvelteKit **refuses to let client code import it** and fails the build if you
+  try. Server-only logic goes here: `server/transactions.ts` holds the form parsing and the response
+  handling shared by the create and edit actions.
+- **Do not re-export `$lib/server` through `$lib/index.ts`.** The barrel is imported by components
+  for types, so routing server code through it puts it straight back into the client graph and
+  silently defeats the guard. Import server modules by full path (`$lib/server/transactions`).
+
+`ApiLoader` (`src/lib/api.ts`) is the only thing that knows where the API is. It takes the
+request-scoped `fetch` in its constructor and prefixes `PUBLIC_API_BASE` onto every path, so route
+files pass paths (`"/accounts"`), never URLs.
+
+- **The event `fetch` must be passed in**, not reached for globally — SvelteKit's wrapped `fetch`
+  forwards cookies, resolves relative URLs, and lets SSR reuse responses. A new instance per event is
+  correct, not wasteful; a module-scope singleton would be the bug.
+- **Naming the parameter `fetch` shadows the global**, so the annotation is `typeof globalThis.fetch`
+  — plain `typeof fetch` is self-referential and won't compile.
+- **Reads and writes want opposite failure handling, so they are separate methods.** `getJson` throws
+  `error(status, await response.text())` — a failed *load* should render an error page and there is
+  nothing left to say. `sendJson` returns the raw `Response` — a failed *action* must `return
+  fail(...)` so the page re-renders with the user's input intact; throwing `error()` there would
+  render an error page and discard everything they typed.
+- `Accept: application/json` goes on every request; `Content-Type` only when there is a body, via a
+  conditional spread — spreading `false` into an object literal contributes nothing.
+
+**Env vars.** `PUBLIC_`-prefixed values are inlined into the client bundle, so they are non-secret by
+construction, and `$env/static/public` resolves at **build** time, so a clone missing the file fails
+to build rather than merely misconfiguring. Both reasons are why `SvelteKit/.env` is committed — a
+deliberate departure from the `db.env` / `db.env.example` pattern, which guards a real password. Keep
+it to `PUBLIC_` vars; anything private goes in `.env.local`, already excluded by the template's
+`.gitignore`. Getting the committed `.env` past git needed the negation in **`SvelteKit/.gitignore`**,
+not the root one: a nested `.gitignore` overrides its parents for files beneath it, and
+`git check-ignore -v <path>` names the exact file and line that decided.
+
+## Routing conventions
+
+- **The route tree is the documentation.** `/transactions/[id]/edit` tells a new dev where the edit
+  page is; `[id]` alone reads as a detail view and hides the fact that it is a form. It matches the
+  Rails/Django convention (`/things/:id` shows, `/things/:id/edit` edits) and leaves `[id]` free for
+  the detail view that splits and attachments will eventually want.
+- **Build internal links with `resolve()` from `$app/paths`.** It is typed against the generated
+  route union, so a path that no longer exists is an `npm run check` error rather than a 404 found by
+  clicking. The `[id]` to `[id]/edit` rename was caught exactly this way.
 
 ## Display formatting
 
@@ -274,11 +333,43 @@ Formatting raw API values for humans is a **frontend** job (the API sends raw da
     neither page was switched over to import from it, so the file was dropped rather than landed
     unused — pure functions with no markup and no state don't belong in a `.svelte` file, and the
     extraction happens for real alongside the shared component.
-- Next: extracting a shared **`TransactionForm` component** — the two pages are now near-identical.
-  **Settled**: the component owns the `<form>` and takes an `action` prop, with the read-only block
-  and the button group toggled by separate flags. It carries a known trap: `$state(prop)` captures
-  once, so navigating `/transactions/2` → `/transactions/3` would reuse the instance and keep the old
-  values — the same root cause as the `use:enhance` warnings, and `{#key}` is the answer. The
-  server-side form parsing is duplicated too and belongs under `src/lib/server/`. After that a
-  **styling pass** (plain scoped CSS; the forms still lay out with `<br>` tags). All tracked in
-  `TODO.md`.
+- **Done: the shared-form refactor slice** — no new features; four `TODO.md` items closed. The
+  create and edit pages collapsed to 12 and 17 lines behind
+  `src/lib/components/TransactionForm.svelte`, the edit route became `[id]/edit`, the duplicated
+  server logic moved to `$lib/server/transactions.ts`, and the API base URL became `PUBLIC_API_BASE`
+  behind `ApiLoader`. The decisions worth remembering:
+  - **A component declares its own props type — `./$types` is route-only.** `$types` is generated per
+    *route* by `svelte-kit sync`, so a component under `src/lib/` importing it fails outright. Even
+    where it would resolve, `PageProps` describes the page's contract, not the component's.
+  - **Ask for the narrowest props, not the page's whole `data` blob.** The two pages return different
+    shapes (only the edit page has `transaction`), so a single `data` prop forces the optionality
+    onto the entire object. Flat props put it on the one field that actually varies.
+  - **`x?: T` and `x: T | undefined` are different contracts.** The first may be omitted; the second
+    must be passed, possibly as `undefined`. A default in the `$props()` destructuring does **not**
+    make the declared type optional — callers are checked against the type, not the default.
+  - **`ReturnType<typeof fail>` silently erases the payload.** `fail` is generic in its data, so
+    `ReturnType` with no type argument gives `ActionFailure<unknown>`. SvelteKit unwraps that to
+    `unknown`, and **`unknown` absorbs a union** — one poisoned member collapsed the whole of
+    `ActionData` to `{}`. It appeared in *two* declarations, so fixing either one alone left the
+    error byte-identical and looking unfixed. Name the payload type and use `ActionFailure<That>`.
+  - **Narrow, don't coerce, when parsing `FormData`.** `.get()` returns `string | File | null`, so
+    `String(x)` silences the type error by converting everything — `String(null)` is the *truthy*
+    string `"null"`, and a `File` becomes `"[object File]"`. `typeof x === "string"` excludes those
+    cases instead of stringifying them.
+  - **`{#key expr}` is how a form re-initializes.** `$state(prop)` is an initializer, not a binding —
+    it runs once per instance. `{#key data.transaction.id}` destroys and rebuilds the component when
+    the id changes. Key on the **id**, not the object: `load` parses a fresh object every navigation,
+    so keying on identity would remount on every visit. `$derived` cannot substitute (read-only, so
+    the fields stop being editable), and an `$effect` copying props into state is the classic
+    anti-pattern — it runs after render and invites loops.
+  - **Latent bugs need a reproduction before a fix.** Nothing in the UI navigates id-to-id, so the
+    `{#key}` bug was unreachable by clicking; temporary prev/next links reproduced it, and were
+    removed once the fix was confirmed.
+  - **A lost edit looks exactly like a regression.** The `bind:value` fix was made, verified, and
+    then lost before the commit, so the cleared-amount bug resurfaced later looking new.
+    `git show HEAD:<file>` answers "was this ever actually committed?" in one command.
+- Next: **progressive enhancement** of the entry form with `use:enhance` — note `{#key}` does *not*
+  cover it, since a failed enhanced submit carries the same id and nothing remounts. Then the
+  **styling pass** (plain scoped CSS; the forms still lay out with `<br>` tags), and the
+  category-set uniqueness question. `npm run format` has been run across the app, so prettier's
+  output is now the formatting baseline. All tracked in `TODO.md`.

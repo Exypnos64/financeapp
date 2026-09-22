@@ -88,16 +88,20 @@ extension, so no endpoint hands back another group's rows. There is still **no a
 every request runs as the seeded development group.
 
 The **edit/delete slice** is complete, so transactions are now full CRUD:
-`GET`/`PUT`/`DELETE /transactions/{id}` back an edit page at `/transactions/[id]`, reachable from an
-Edit link on every row of the transactions list. This was the first use of EF **change tracking** —
-loading an entity, mutating it, and letting `SaveChangesAsync()` work out the `UPDATE` — and of the
-`404`-vs-`422` split, where "doesn't exist" and "isn't yours" deliberately look identical to the
-caller.
+`GET`/`PUT`/`DELETE /transactions/{id}` back an edit page at `/transactions/[id]/edit`, reachable
+from an Edit link on every row of the transactions list. This was the first use of EF **change
+tracking** — loading an entity, mutating it, and letting `SaveChangesAsync()` work out the `UPDATE` —
+and of the `404`-vs-`422` split, where "doesn't exist" and "isn't yours" deliberately look identical
+to the caller.
 
-Next is extracting a shared **`TransactionForm` component**, since the create and edit pages are now
-near-duplicates, along with the server-side form parsing they also share. A styling pass (every
-screen is still unstyled HTML) and progressive enhancement of the entry form follow. See `TODO.md`
-for the full backlog.
+The **shared-form refactor** is complete. It added no features; it removed duplication that had
+built up across the create and edit pages. A single `TransactionForm` component now backs both (they
+are 12 and 17 lines each), the edit route was renamed `[id]` → `[id]/edit` so the directory tree says
+what the page does, the shared server-side form parsing moved to `$lib/server/`, and the API base URL
+became a `PUBLIC_API_BASE` environment variable read in one place behind an `ApiLoader` class.
+
+Next is **progressive enhancement** of the entry form with `use:enhance`, then a styling pass (every
+screen is still unstyled HTML). See `TODO.md` for the full backlog.
 
 > A `HANDOFF.md` (a dated "picking this up" snapshot) will be added if/when the project reaches a
 > point where someone else — or a future self after a long gap — needs to take it over.
