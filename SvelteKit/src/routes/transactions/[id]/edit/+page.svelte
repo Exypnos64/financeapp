@@ -4,6 +4,7 @@
     let { data, form }: PageProps = $props();
 </script>
 
+{#key data.transaction.id}
 <TransactionForm
     accounts={data.accounts}
     categories={data.categories}
@@ -14,3 +15,4 @@
     showDelete
     showReadOnly
 />
+{/key}
