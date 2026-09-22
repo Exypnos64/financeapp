@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Account, Category, Merchant, TransactionDto, TransactionFormFailure } from '$lib';
+	import { enhance } from '$app/forms';
 	type Props = {
 		accounts: Account[];
 		categories: Category[];
@@ -86,7 +87,7 @@
 	}
 </script>
 
-<form method="POST" {action}>
+<form method="POST" {action} use:enhance>
 	{#if showReadOnly}
 		<span>Original Statement:</span>
 		<pre id="originalStatement" style="display: inline;">{transaction?.originalStatement}</pre>

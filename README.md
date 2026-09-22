@@ -100,8 +100,14 @@ are 12 and 17 lines each), the edit route was renamed `[id]` → `[id]/edit` so 
 what the page does, the shared server-side form parsing moved to `$lib/server/`, and the API base URL
 became a `PUBLIC_API_BASE` environment variable read in one place behind an `ApiLoader` class.
 
-Next is **progressive enhancement** of the entry form with `use:enhance`, then a styling pass (every
-screen is still unstyled HTML). See `TODO.md` for the full backlog.
+**Progressive enhancement** is done, and it was the smallest slice so far: one import and
+`use:enhance` on the shared form, with no change to the server actions — which is the whole point of
+the feature, since the no-JS path has to keep working untouched. The lesson was worth more than the
+diff: an enhanced `fail()` comes back as **HTTP 200** with the real status wrapped inside a JSON
+envelope, because the response is no longer the next page but a description of what the action did.
+
+Next is a **styling pass** (every screen is still unstyled HTML). See `TODO.md` for the full
+backlog.
 
 > A `HANDOFF.md` (a dated "picking this up" snapshot) will be added if/when the project reaches a
 > point where someone else — or a future self after a long gap — needs to take it over.

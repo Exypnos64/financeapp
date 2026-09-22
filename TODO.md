@@ -103,13 +103,18 @@ what was produced (the code/doc/artifact). That turns this file into a lightweig
   `.env.local`, already gitignored. Gotcha worth remembering: the negation had to go in
   `SvelteKit/.gitignore`, because a nested `.gitignore` overrides its parents — `git check-ignore -v
   <path>` names the deciding file and line.
-- [ ] **Progressively enhance the entry form** with `use:enhance` (submit without a full page
-  reload). Blocked on a real trap: the form's `$state` initializers read `form?.values?.…`, which
-  only works today *because* a native POST is a full navigation that rebuilds the component.
-  `use:enhance` updates props in place, so those initializers stop re-running — which is exactly
-  what the seven `state_referenced_locally` warnings were pointing at. **The `{#key}` fix does not
-  cover this**: a failed enhanced submit carries the same transaction id, so nothing remounts and
-  the `form?.values?.…` half still never re-runs. Same root cause, different trigger.
+- [x] **Progressively enhance the entry form** with `use:enhance` (submit without a full page
+  reload).
+  Done: one import and `use:enhance` on the `<form>` in `TransactionForm.svelte` — two lines, the
+  whole code change. The anticipated trap **was not one**. The worry was that the `$state`
+  initializers reading `form?.values?.…` would stop re-running once a failed submit no longer
+  remounts the component; in fact the fields are `bind:value`-bound, so on the enhanced path the
+  typed values never leave the DOM and there is nothing to restore. Those reads are now live for the
+  **no-JS path only**, where the browser genuinely does discard the form — which also turns the
+  seven `svelte-ignore state_referenced_locally` comments into accurate descriptions ("read once, at
+  mount") rather than suppressions. The real finding was elsewhere: an enhanced `fail()` comes back
+  **HTTP 200** wrapping the status in a JSON envelope. Both submit paths and both buttons verified
+  with DevTools’ "Disable JavaScript". See `.claude/docs/frontend.md`.
 - [ ] **Decide whether duplicate category-set names are allowed.** `CategorySet.Name` has no unique
   constraint, so one group can hold two sets called "Bills" — which would merge into a single
   `<optgroup>` if the UI ever grouped by name. The dropdown groups by `SetId` specifically to avoid
