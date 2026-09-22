@@ -368,8 +368,44 @@ Formatting raw API values for humans is a **frontend** job (the API sends raw da
   - **A lost edit looks exactly like a regression.** The `bind:value` fix was made, verified, and
     then lost before the commit, so the cleared-amount bug resurfaced later looking new.
     `git show HEAD:<file>` answers "was this ever actually committed?" in one command.
-- Next: **progressive enhancement** of the entry form with `use:enhance` — note `{#key}` does *not*
-  cover it, since a failed enhanced submit carries the same id and nothing remounts. Then the
-  **styling pass** (plain scoped CSS; the forms still lay out with `<br>` tags), and the
+- **Done: progressive enhancement.** `import { enhance } from '$app/forms'` plus `use:enhance` on
+  the `<form>` in `TransactionForm.svelte` — two lines, no change to either `+page.server.ts`. That
+  is the point of the feature: it is *additive*, so the server action and the no-JS path are
+  untouched. The decisions and surprises worth remembering:
+  - **An enhanced `fail()` returns HTTP 200.** This is the one that will waste an afternoon if it is
+    not written down. `handle_action_json_request` builds the failure response as
+    `action_json({ type: 'failure', status, data })` with **no** `init` argument, so the HTTP status
+    defaults to 200 and the real status rides inside the JSON body. Redirects behave the same way
+    (`action_json_redirect` returns 200 carrying `{type:'redirect', status:303, location}`) — a real
+    303 would be followed by the browser before `enhance` could intercept it. The contrast that
+    explains the rule: when an action *throws*, SvelteKit **does** pass a status, so "the action
+    failed to run" is a transport-level error while "the action ran and returned a failure" is an
+    expected outcome in an envelope. The .NET API still returns its genuine 422; only SvelteKit's
+    action layer wraps it, so anything asserting on a status code has to know which of the two
+    layers it is talking to.
+  - **The anticipated `$state` trap never materialized.** The prediction was that
+    `$state(form?.values?.… ?? …)` would break once a failed submit stopped remounting the component.
+    It did stop re-running — and nothing broke, because `bind:value` means the typed values were
+    still sitting in the DOM. Restoring them is only necessary when the browser has thrown them
+    away.
+  - **The two submit paths need opposite mechanisms, and one line serves both.** JS on: no remount,
+    initializers never re-run, `bind:value` holds the values. JS off: fresh mount, `bind:value` holds
+    nothing, `form.values` is the only surviving record of what was typed. Deleting the
+    `form?.values?.…` reads as "dead code" would silently wipe a filled-out form for every no-JS
+    user on every validation failure. Test progressive enhancement with DevTools’
+    **Disable JavaScript** — the enhanced path is the easy one to check and the only one most people
+    check.
+  - **`svelte-ignore state_referenced_locally` turned out to be correct, not a workaround.** The
+    warning says "this is read once, at mount"; that is now precisely the intent on both paths.
+  - **One `use:enhance` on the `<form>` covers the Delete button too.** `enhance` resolves the target
+    from `event.submitter`, honouring `formaction`/`formmethod`/`formenctype` when the submitter
+    carries them (`app/forms.js:129`), and passes the submitter into
+    `new FormData(form_element, event.submitter)` so the button’s own `name` is still submitted. The
+    action does **not** have to be hoisted onto each button. The source comment there is worth
+    knowing: it cannot read `submitter.formAction` directly, because that property is *always*
+    populated — it falls back to the form’s action — so it has to test `hasAttribute('formaction')`
+    first to tell "overridden" from "inherited". `formnovalidate` is unaffected: native validation
+    runs before the `submit` event, so it never reaches `enhance` either way.
+- Next: the **styling pass** (plain scoped CSS; the forms still lay out with `<br>` tags), and the
   category-set uniqueness question. `npm run format` has been run across the app, so prettier's
   output is now the formatting baseline. All tracked in `TODO.md`.
