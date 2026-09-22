@@ -19,10 +19,24 @@ what was produced (the code/doc/artifact). That turns this file into a lightweig
 
 ## Foundations (learn-as-we-go, roughly in order)
 
-- [ ] **Database design** — model financial accounts + transactions, multi-user-aware from the
+- [x] **Database design** — model financial accounts + transactions, multi-user-aware from the
   start (keep "financial account" vs. "user account" distinct). Decide SQL naming conventions.
-- [ ] **Docker: containerize SQL Server** — DB only for now; API/frontend stay on the host. Defer
+  Done: `MSSQL/` schema-as-code (`FinanceDb.sqlproj`, one file per object under `Tables/`) — eleven
+  tables covering group ownership (`UserGroup`, `EndUser`, `GroupMember`), financial accounts
+  (`Account`), transactions (`LedgerEntry`), and the two-tier merchant/category model
+  (`Merchant`/`GroupMerchant`, `Category`/`CategorySet` over `DefaultCategory`/`DefaultCategorySet`),
+  plus idempotent seed/reference rows in `Script.PostDeployment.sql`. The two meanings of "account"
+  stay distinct (`Account` vs. `EndUser`), as do the two meanings of "group" (`UserGroup` vs.
+  `CategorySet`). SQL naming conventions are settled and recorded in `CLAUDE.md` → Naming
+  Conventions → SQL Server.
+- [x] **Docker: containerize SQL Server** — DB only for now; API/frontend stay on the host. Defer
   container networking (team lead's guidance).
+  Done: the `financedb` container (`mcr.microsoft.com/mssql/server:2022-CU14-ubuntu-22.04`, port
+  1433, named volume `financedb-data`, SA password supplied from the gitignored `db.env`), created
+  once per `SETUP.md` step 6 and started with `docker start financedb` thereafter; the dacpac
+  publishes into it via `MSSQL\PublishSqlPackage.ps1`. VS Code's `db: start` task brings it up as an
+  F5 prelaunch step — see `.claude/docs/editor-debugging.md`. The API and frontend still run on the
+  host; container networking remains deliberately deferred.
 - [x] **.NET API skeleton** — stand up the C# web API and connect it to the containerized DB.
   Done: `Api/` project (single project, minimal APIs, .NET 10); EF Core read/map against the dacpac
   schema; `GET /accounts` returns `Account` rows from the containerized DB as JSON. See
@@ -52,31 +66,50 @@ what was produced (the code/doc/artifact). That turns this file into a lightweig
   `/transactions/[id]` with `?/update` and `?/delete` named actions, `formaction` +
   `formnovalidate` on the Delete button, and an Edit link on every list row. See
   `.claude/docs/{api,frontend}.md`.
-- [ ] **Extract a shared `TransactionForm` component.** `/transactions/new` and
-  `/transactions/[id]` are now near-identical — the same selects, inputs and `<optgroup>` logic in
-  two files, so every styling change would land twice. **Settled**: the component owns the `<form>`
-  element and takes an `action` prop; the read-only block (`originalStatement`, `originalDate`,
-  `lastModifiedUtc`) and the submit/delete button group toggle **separately** — one flag would do
-  today, but two keeps the pages independently customizable. Lives at
-  `src/lib/components/TransactionForm.svelte`. Carries the trap below.
-- [ ] **Re-initialize the form when the transaction id changes.** Same root cause as the
-  `use:enhance` item: `$state(data.transaction.accountId)` captures a value **once**. Today every
-  arrival is a full page load, so it works. Once the fields live in one component, navigating
-  `/transactions/2` → `/transactions/3` reuses the instance and only updates props — the
-  initializers never re-run, so you would edit transaction 3 with transaction 2's values loaded. A
-  `{#key}` block around the component is the Svelte answer; settle it when the component lands.
-- [ ] **Extract the duplicated form-action logic.** `new/+page.server.ts` and `[id]/+page.server.ts`
-  share their `formData` parsing, number coercion and `userDate` guard verbatim. Belongs under
-  `src/lib/server/`, which SvelteKit refuses to let client code import.
-- [ ] **Move the API base URL out of the source.** `http://localhost:5046` is now a hand-declared
-  `API_BASE` constant in three frontend files. SvelteKit's `$env/static/public` is the home for it —
-  note the server-only load could use `$env/static/private`, but the universal loads in `+page.ts`
-  run in the browser too and therefore need the `PUBLIC_` prefix.
+- [x] **Extract a shared `TransactionForm` component.** `/transactions/new` and
+  `/transactions/[id]` were near-identical — the same selects, inputs and `<optgroup>` logic in two
+  files, so every styling change would land twice.
+  Done: `src/lib/components/TransactionForm.svelte` owns the `<form>` and takes `accounts`,
+  `categories`, `merchants`, an optional `transaction`, `form`, an `action` prop, and **separate**
+  `showReadOnly`/`showDelete` flags. The two pages dropped to 12 and 17 lines. The edit route was
+  renamed `[id]` → `[id]/edit` in the same pass so the directory tree names the page for the next
+  dev; `resolve()` turned the stale list-page link into a compile error rather than a runtime 404.
+  See `.claude/docs/frontend.md`.
+- [x] **Re-initialize the form when the transaction id changes.** `$state(prop)` captures a
+  value **once**, so navigating `/transactions/2/edit` → `/transactions/3/edit` reused the component
+  instance and only updated props — the initializers never re-ran, and you would edit transaction 3
+  through transaction 2's values.
+  Done: `{#key data.transaction.id}` wraps `<TransactionForm />` in `[id]/edit/+page.svelte`.
+  Reproduced first with temporary prev/next links (the UI offers no id→id navigation), then
+  confirmed fixed and the links removed. Keyed on the **id**, not the `transaction` object — `load`
+  parses a fresh object per navigation, so keying on identity would remount on every visit.
+- [x] **Extract the duplicated form-action logic.** `new/+page.server.ts` and
+  `[id]/edit/+page.server.ts` shared their `formData` parsing, number coercion and `userDate` guard
+  verbatim.
+  Done: `src/lib/server/transactions.ts` holds `validateTransaction` (returns a discriminated
+  `{ ok: true, body } | { ok: false, failure }`, because `fail()` only works when the **action**
+  returns it) and `handleTransactionResponse` (redirect on success, `fail` otherwise). Imported as
+  `$lib/server/transactions` and deliberately **not** re-exported through `$lib/index.ts` — the
+  barrel is client-reachable, so routing server code through it would defeat SvelteKit's guard. The
+  shared types stay in `src/lib/types.ts`, since `TransactionForm.svelte` imports
+  `TransactionFormFailure`.
+- [x] **Move the API base URL out of the source.** `http://localhost:5046` was a hand-declared
+  `API_BASE` constant in four frontend files.
+  Done: `PUBLIC_API_BASE` in a **committed** `SvelteKit/.env`. It is non-secret by construction —
+  `PUBLIC_` values are inlined into the client bundle — and `$env/static/public` resolves at *build*
+  time, so a fresh clone without the file fails to build rather than merely misconfiguring. Read in
+  exactly one place (`src/lib/api.ts`); all nine call sites go through the new `ApiLoader`, which
+  owns the base URL and the request-scoped `fetch`. Anything genuinely private belongs in
+  `.env.local`, already gitignored. Gotcha worth remembering: the negation had to go in
+  `SvelteKit/.gitignore`, because a nested `.gitignore` overrides its parents — `git check-ignore -v
+  <path>` names the deciding file and line.
 - [ ] **Progressively enhance the entry form** with `use:enhance` (submit without a full page
   reload). Blocked on a real trap: the form's `$state` initializers read `form?.values?.…`, which
   only works today *because* a native POST is a full navigation that rebuilds the component.
   `use:enhance` updates props in place, so those initializers stop re-running — which is exactly
-  what the seven `state_referenced_locally` warnings were pointing at.
+  what the seven `state_referenced_locally` warnings were pointing at. **The `{#key}` fix does not
+  cover this**: a failed enhanced submit carries the same transaction id, so nothing remounts and
+  the `form?.values?.…` half still never re-runs. Same root cause, different trigger.
 - [ ] **Decide whether duplicate category-set names are allowed.** `CategorySet.Name` has no unique
   constraint, so one group can hold two sets called "Bills" — which would merge into a single
   `<optgroup>` if the UI ever grouped by name. The dropdown groups by `SetId` specifically to avoid
