@@ -9,4 +9,5 @@ public record CreateTransactionRequest : ITransactionInput
     public decimal? CashBack { get; init; }
     public required DateTimeOffset UserDate { get; init; }
     public string? Notes { get; init; }
+    public required Guid IdempotencyKey { get; init; }
 }

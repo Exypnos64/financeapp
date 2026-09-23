@@ -1,6 +1,7 @@
 using Api.Contracts;
 using Api.Data;
 using Api.Entities;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace Api.Endpoints;
@@ -58,6 +59,35 @@ public static class TransactionEndpoints
             if (validationError is not null)
                 return validationError;
 
+            var transactionById = async (int id) => await db.LedgerEntry
+                .OwnedBy(TempDefaults.DevGroupId)
+                .Where(l => l.Id == id)
+                .Select(TransactionLi.FromLedgerEntry)
+                .SingleAsync();
+
+            var findGuidMatch = async () => await db.LedgerEntry
+                .OwnedBy(TempDefaults.DevGroupId)
+                .Where(e => e.IdempotencyKey == req.IdempotencyKey)
+                .SingleOrDefaultAsync();
+            
+            var compareReqGuid = (CreateTransactionRequest request, LedgerEntry match) => request.AccountId == match.AccountId
+                    && request.Amount == match.Amount
+                    && request.CashBack == match.CashBack
+                    && request.CategoryId == match.CategoryId
+                    && request.MerchantId == match.MerchantId
+                    && request.Notes == match.Notes
+                    && request.UserDate == match.UserDate;
+
+            LedgerEntry? guidMatch = await findGuidMatch();
+
+            if (guidMatch is not null)
+            {
+                if (compareReqGuid(req, guidMatch))
+                    return Results.Created($"/transactions/{guidMatch.Id}", await transactionById(guidMatch.Id));
+                else
+                    return Results.Conflict("This UUID is already in use.");
+            }
+
             var entry = new LedgerEntry
             {
                 GroupId = TempDefaults.DevGroupId,
@@ -68,19 +98,31 @@ public static class TransactionEndpoints
                 CashBack = req.CashBack,
                 UserDate = req.UserDate,
                 Notes = req.Notes,
-                LastModifiedUtc = DateTime.UtcNow
+                LastModifiedUtc = DateTime.UtcNow,
+                IdempotencyKey = req.IdempotencyKey
             };
 
             db.LedgerEntry.Add(entry);
-            await db.SaveChangesAsync();
+            try
+            {
+                await db.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+                when (ex.InnerException is SqlException sqlEx && (sqlEx.Number == 2627))
+            {
+                guidMatch = await findGuidMatch();
 
-            var created = await db.LedgerEntry
-                .OwnedBy(TempDefaults.DevGroupId)
-                .Where(l => l.Id == entry.Id)
-                .Select(TransactionLi.FromLedgerEntry)
-                .SingleAsync();
+                if (guidMatch is not null)
+                {
+                    if (compareReqGuid(req, guidMatch))
+                        return Results.Created($"/transactions/{guidMatch.Id}", await transactionById(guidMatch.Id));
+                    else
+                        return Results.Conflict("This UUID is already in use.");
+                }
+                else throw;
+            }
 
-            return Results.Created($"/transactions/{entry.Id}", created);
+            return Results.Created($"/transactions/{entry.Id}", await transactionById(entry.Id));
         });
 
         app.MapPut("/transactions/{id:int}", async (int id, UpdateTransactionRequest req, FinanceDbContext db) =>

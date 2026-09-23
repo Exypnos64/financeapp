@@ -23,4 +23,5 @@ public class LedgerEntry : IGroupOwned
     public string? OriginalStatement { get; set; }
     public DateTimeOffset? OriginalDate { get; set; }
     public DateTime LastModifiedUtc { get; set; }
+    public Guid IdempotencyKey { get; set; }
 }
