@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Account, Category, Merchant, TransactionDto, TransactionFormFailure } from '$lib';
 	import { enhance } from '$app/forms';
+	import { resolve } from '$app/paths';
 	type Props = {
 		accounts: Account[];
 		categories: Category[];
@@ -134,6 +135,7 @@
 		<input type="hidden" name="uuid" bind:value={storedUuid} />
 	{/if}
 
+	<a href={resolve('/transactions')}>Cancel</a>
 	<button name="submit" type="submit">Submit</button>
 	{#if showDelete}
 		<button name="delete" formaction="?/delete" formnovalidate>Delete</button>
