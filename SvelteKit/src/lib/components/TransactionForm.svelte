@@ -45,28 +45,11 @@
 	let notes = $state(String(form?.values?.notes ?? transaction?.notes ?? ''));
 
 	let categoryDropdown = $derived(categoryGroups(categories));
-	let submitDate = $derived(transformDate(setDate));
+	let tzOffsetMins = $derived(new Date(setDate).getTimezoneOffset());
 
 	function categoryGroups(flatList: Category[]): Map<number, Category[]> {
 		const result = Map.groupBy(flatList, (c) => c.set.id);
 		return result;
-	}
-
-	function transformDate(date: string): string {
-		if (date === '') return '';
-		// console.log(`Transform before: ${date}`);
-
-		let offsetMin = new Date(date).getTimezoneOffset();
-		let offsetHr = Math.trunc(offsetMin / 60);
-		const sign = offsetMin > 0 ? '-' : '+';
-		offsetMin -= offsetHr * 60;
-
-		const hrStr = Math.abs(offsetHr).toString().padStart(2, '0');
-		const minStr = Math.abs(offsetMin).toString().padStart(2, '0');
-		// set seconds when date picker supports it
-		const newDate = date + `:00${sign}${hrStr}:${minStr}`;
-		// console.log(`Transform after:  ${newDate}`);
-		return newDate;
 	}
 
 	function reduceDate(date: string): string {
@@ -133,7 +116,7 @@
 
 	<label for="date">Date:</label>
 	<input required type="datetime-local" name="datePicker" bind:value={setDate} id="date" />
-	<input type="hidden" name="userDate" value={submitDate} /><br /><br />
+	<input type="hidden" name="userOffset" value={tzOffsetMins} /><br /><br />
 
 	<label for="cashBack">Cash Back:</label>
 	<input type="number" step="0.0001" name="cashBack" id="cashBack" bind:value={cashBack} /><br /><br
