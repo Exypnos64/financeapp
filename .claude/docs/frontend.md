@@ -170,10 +170,14 @@ entirely.
 `DATETIMEOFFSET` and `project-vision.md` requires the offset to be captured from the device. A
 server action cannot recover it — it's a different machine.
 
-The mechanism: the **visible picker** carries its own `name` (round-trips its own format on a failed
-submit) and a **hidden field** carries the value actually sent, one-way `value={derived}`. A `$state`
-holds the picker's value; a `$derived` builds the submitted string. This is the one place
-`bind:value` genuinely earns itself — the selects don't need it, since `name` is what submits.
+The mechanism: each piece of information has **one source**. The **visible picker** (`datePicker`)
+carries the local wall-clock time; a **hidden field** (`userOffset`) carries *only* the browser's
+offset in minutes, one-way `value={derived}` from `new Date(setDate).getTimezoneOffset()`. The
+**server** combines them in `transformDate` (`src/lib/dates.ts`, called from
+`$lib/server/transactions.ts`), so every submit path formats the date the same way.
+
+An earlier version had the hidden field carry the whole pre-formatted date. That sent the date twice
+and made the no-JS path depend on a value only JS could compute — see *No-JS consequence* below.
 
 The conversion needs no date arithmetic at all: `"2026-09-11T14:30"` is **already local wall-clock in
 ISO field order**, so you only append seconds and an offset to get
@@ -196,9 +200,25 @@ runs in another zone — a UTC container, or a deployed host. Inspecting stored 
 code; only reading the request body can. A parser that fills in a default for ambiguous input is more
 dangerous than one that rejects it.
 
-**No-JS consequence**: the hidden field can only be populated by JS, so a no-script submit sends
-`""`. The action guards for it explicitly and returns its own `fail` — a message you wrote beats
-whatever .NET says about an unparseable `DateTimeOffset`.
+**No-JS consequence — never let the no-JS path depend on a value JS computes.** Without JS, component
+code runs only during the server render, so a `$derived` hidden field is frozen at whatever the server
+computed. With the old full-date hidden field, a fresh page rendered it as `""`, so a no-JS create
+*always* failed its first submit and a no-JS edit silently saved the **old** date. Now the guard runs
+on `datePicker` (what the user actually picked), and the offset has a fallback:
+
+- **A fresh no-JS page sends `userOffset="NaN"`, not an empty field** — the server render evaluated
+  `new Date('').getTimezoneOffset()`. So `transformDate` uses the sent offset only if it is a real
+  number and otherwise falls back to the **server's** offset for that date. That fallback is a
+  degraded approximation — correct only while server and browser share a zone — and the price of
+  working without JS at all.
+- **`||` is the wrong fallback operator for an offset.** `0` is falsy, so `offset || fallback`
+  discards a real UTC user's offset (London in winter) and stamps the server's. `??` is no better —
+  it never falls back on `NaN`. Test it with DevTools → Sensors → a London location on a winter date.
+- **`Number()` turns a *missing* field into `0`** (`Number(null)`, `Number('')`), which then reads as
+  UTC. The form always sends the field, so only a non-form client hits it today; if it matters, the
+  place to turn "missing" into `NaN` is `validateTransaction`, before `transformDate` sees it.
+- The fully correct answer is the user's **IANA time zone** as a preference, not an offset per
+  submit — see `project-vision.md` → Dates and time zones.
 
 ## Shared modules — `$lib` and `$lib/server`
 
@@ -406,6 +426,27 @@ Formatting raw API values for humans is a **frontend** job (the API sends raw da
     populated — it falls back to the form’s action — so it has to test `hasAttribute('formaction')`
     first to tell "overridden" from "inherited". `formnovalidate` is unaffected: native validation
     runs before the `submit` event, so it never reaches `enhance` either way.
+- **Done: idempotent create** (the frontend half; the API half is in `api.md`). The create form
+  sends a hidden `uuid`, forwarded as `idempotencyKey`. The decisions worth remembering:
+  - **Mint the key when the page loads, not when the form submits.** A key minted per submit is new
+    on every retry, which protects nothing. It is minted once in `new/+page.server.ts`'s `load` and
+    passed to `TransactionForm` as an optional `uuid` prop; the hidden input renders only when there
+    is one, so the edit page sends none. (Minting inside the component also works, but runs twice —
+    once in the server render, again when the browser takes over.)
+  - **After a failed submit, the old key must win.** `load` re-runs after a failed action and mints a
+    *fresh* key, but the failed attempt may already have been written (the 500-after-commit case), so
+    `form?.values?.uuid ?? uuid` — the submitted key first. Put the prop first and a resubmit becomes
+    exactly the duplicate this slice exists to prevent.
+  - **`a ?? b ? x : y` parses as `(a ?? b) ? x : y`.** `??` binds tighter than the conditional, so the
+    first version regenerated the key whenever one came back from a failed submit. Parenthesise any
+    `??` that sits next to a `?:`.
+  - **Excess properties from a spread are not type-checked.** `...(cond && { idempotencyKey })` onto
+    a `ValidatedTransaction` that lacked the field passed `npm run check` silently; the field had to be
+    added to the type for the checker to see it.
+  - The **no-JS date bug** this slice uncovered (it predated the slice) is written up under
+    *Timezones on write* → *No-JS consequence*. `transformDate` finally lives in `src/lib/dates.ts`,
+    imported only by server code.
+- Also landed alongside: a **New** link on the transactions list and a **Cancel** link on the form.
 - Next: the **styling pass** (plain scoped CSS; the forms still lay out with `<br>` tags), and the
   category-set uniqueness question. `npm run format` has been run across the app, so prettier's
   output is now the formatting baseline. All tracked in `TODO.md`.

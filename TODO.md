@@ -115,6 +115,18 @@ what was produced (the code/doc/artifact). That turns this file into a lightweig
   mount") rather than suppressions. The real finding was elsewhere: an enhanced `fail()` comes back
   **HTTP 200** wrapping the status in a JSON envelope. Both submit paths and both buttons verified
   with DevTools’ "Disable JavaScript". See `.claude/docs/frontend.md`.
+- [x] **Make transaction creates idempotent** — the prerequisite `project-vision.md` set for
+  statement import, since a failed response does not mean a failed write and a retried POST
+  double-entered the transaction.
+  Done: `LedgerEntry.IdempotencyKey` (`UNIQUEIDENTIFIER NOT NULL`, no default,
+  `UQ_LedgerEntry_GroupId_IdempotencyKey`); `CreateTransactionRequest.IdempotencyKey` is a required
+  `Guid`. `POST /transactions` looks the key up first, then catches the unique violation (2627) for
+  the concurrent case. Same key and body returns the original row, a different body is a `409`. The
+  frontend mints the key in `new/+page.server.ts`'s `load` and a failed submit keeps its old key.
+  `Api/Api.http` sends `{{$guid}}` on every POST, plus a fixed-key replay/conflict suite. The slice
+  also fixed a **pre-existing no-JS date bug**: the hidden field now carries only the browser's offset
+  and the server builds the date in `src/lib/dates.ts`, falling back to the server's offset without
+  JS. See `.claude/docs/{api,frontend}.md`.
 - [ ] **Decide whether duplicate category-set names are allowed.** `CategorySet.Name` has no unique
   constraint, so one group can hold two sets called "Bills" — which would merge into a single
   `<optgroup>` if the UI ever grouped by name. The dropdown groups by `SetId` specifically to avoid
@@ -125,7 +137,9 @@ what was produced (the code/doc/artifact). That turns this file into a lightweig
 
 ## Core features
 
-- [ ] **Manual statement import** — bring bank report/export data in.
+- [ ] **Manual statement import** — bring bank report/export data in. Imported rows need an
+  idempotency key **derived from the source line** (deterministic), not a random one — otherwise
+  importing the same file twice duplicates every row. See `project-vision.md`.
 - [ ] **Reconciliation** — match imported bank data against manually-entered transactions.
 - [ ] **Budgeting — bucket/envelope first** (owner's preference), then category, then flex.
 - [ ] **Vendor pattern recognition** — canonicalize vendors from transaction descriptions.

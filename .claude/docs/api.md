@@ -316,8 +316,41 @@ pipeline, "register these resources") rather than as the API's implementation.
     `Location` header**, i.e. "I created something" while declining to say where. Always pass the real
     path (`$"/transactions/{entry.Id}"`), even if that GET endpoint doesn't exist yet.
 - **A failed response does not mean a failed write.** The `INSERT` commits before serialisation runs, so
-  a 500 from the response path leaves a real row behind. See the write-path idempotency entry in
-  [`project-vision.md`](project-vision.md) — unmitigated, and it must be settled before statement import.
+  a 500 from the response path leaves a real row behind. That is what the idempotency key guards
+  against — see *Idempotent create* below.
+
+### Idempotent create
+
+`POST /transactions` requires an `IdempotencyKey` (`Guid`), stored on the row as
+`LedgerEntry.IdempotencyKey` with `UQ_LedgerEntry_GroupId_IdempotencyKey`. The rule is **one key, one
+row**: a create retried with the same key must not produce a second transaction.
+
+- **Lookup first, then insert, then catch.** A lookup by key (through `OwnedBy`) handles the ordinary
+  retry. It cannot handle two requests arriving together — both pass the lookup — so the unique
+  constraint is the real guarantee, and a `DbUpdateException` whose inner `SqlException.Number` is
+  **2627** (unique-*constraint* violation; 2601 is the unique-*index* one) means "someone else just
+  inserted this key": look it up again and fall through to the same comparison. Anything else is
+  re-thrown — an empty `catch` there would hide FK violations too, and would also leave `entry.Id` at
+  `0`, so the next query fails anyway.
+- **Same key, same body → the original row (`201`); same key, different body → `409`.** Returning the
+  original silently is what makes a retry indistinguishable from the first call. Comparing the body is
+  what stops a *client bug* that reuses a key from silently dropping a real transaction. Note
+  `DateTimeOffset ==` compares **instants**, so the same moment sent with a different offset counts as
+  the same body.
+- **The key is `NOT NULL` with no default, deliberately.** A `DEFAULT NEWID()` would make the column
+  painless and the feature useless: a server-invented key is new on every attempt, so a retry would
+  get a fresh one. No default means any create path that forgets the key fails loudly. Seeds call
+  `NEWID()` explicitly — they are not retried over a network.
+- **Type the contract as `Guid`, not `string`.** Model binding then rejects a malformed key with a
+  `400` before the handler runs, and the lookup compares GUIDs. Comparing `ToString()` output works
+  only by accident — SQL Server renders GUIDs upper-case, .NET lower-case, and the default collation
+  happens to be case-insensitive — and the conversion stops the query using the index.
+- **`PUT` needs no key**: setting a row to a given state twice leaves it in that state, so it is
+  already idempotent. `DELETE` likewise.
+- **UUID collisions are not a real risk** (122 random bits; ~2.7 × 10¹⁸ keys for even odds of one,
+  and scoped per group besides), which is why keys don't expire — see `project-vision.md`.
+- Exercised by the *Idempotency:* requests at the bottom of `Api/Api.http`, which use a fixed
+  `@Duplicate_Key`; every other POST sends `{{$guid}}`, a fresh key per send.
 - **Returning the created resource costs an extra query, deliberately.** Existence guards use
   `AnyAsync`, which yields `bool`s, not names — so building a `TransactionLi` means re-querying by
   `entry.Id` with the same projection the list endpoint uses (`SingleAsync`, since the row was just
@@ -505,6 +538,18 @@ pipeline, "register these resources") rather than as the API's implementation.
     over becomes the JSON body. Renaming a parameter away from its route segment doesn't error — it
     falls through to query-string binding and yields `0`. Convention (not enforced): route, then
     query, then body, then services, then `CancellationToken`.
+- **Done: idempotent create.** `POST /transactions` takes a required key and refuses to make a second
+  row for it — the prerequisite `project-vision.md` set for statement import. Mechanics are under
+  *Idempotent create* above; the lessons that don't belong there:
+  - **Reproduce first.** Posting the same body twice and seeing two rows in SSMS was the failing test,
+    and the fixed-key `.http` requests are that test kept.
+  - **A running debug session can serve stale code.** Edits that change a type's shape (the contract's
+    key went `string` → `Guid`) can't be hot-applied, and `dotnet build` meanwhile fails to copy the
+    locked `Api.dll`. The symptom was a `422 "Invalid GUID format."` from a check that no longer
+    existed in the source — if a response contradicts the code, grep for its message, then restart.
+  - **Adding a `NOT NULL` column to a populated table fails the publish**, and the seed script cannot
+    backfill it in time: post-deployment runs *after* the schema change. With no real data, the way
+    through is to empty the table (or drop the database) and republish so the seeds run fresh.
 - Next: **`POST /merchants`** — merchant find-or-insert against the master list, making adoption real
   rather than seeded. That is also what earns the extraction of `MerchantLi`'s projection onto the
   DTO, which today has a single call site.

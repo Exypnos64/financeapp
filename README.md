@@ -106,6 +106,13 @@ the feature, since the no-JS path has to keep working untouched. The lesson was 
 diff: an enhanced `fail()` comes back as **HTTP 200** with the real status wrapped inside a JSON
 envelope, because the response is no longer the next page but a description of what the action did.
 
+**Creating a transaction is now idempotent**, the prerequisite for statement import. The create
+form sends a key minted when the page loads, and the API stores it on the row under a unique
+constraint, so a retried or double-clicked submit returns the original transaction instead of saving
+a second one. Reusing a key with a different body is refused with a `409`. The slice also fixed a
+no-JS bug that predated it: the date only reached the server if JS had computed it, so the form now
+sends the browser's offset alone and the server builds the date.
+
 Next is a **styling pass** (every screen is still unstyled HTML). See `TODO.md` for the full
 backlog.
 
