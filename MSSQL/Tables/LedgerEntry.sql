@@ -11,6 +11,7 @@ CREATE TABLE LedgerEntry (
     OriginalStatement NVARCHAR(500) NULL,
     OriginalDate DATETIMEOFFSET NULL,
     LastModifiedUtc DATETIME2 NOT NULL CONSTRAINT DF_LedgerEntry_LastModifiedUtc DEFAULT SYSUTCDATETIME(),
+    IdempotencyKey UNIQUEIDENTIFIER NOT NULL,
 
     CONSTRAINT PK_LedgerEntry PRIMARY KEY (Id),
 
@@ -18,5 +19,6 @@ CREATE TABLE LedgerEntry (
 
     CONSTRAINT FK_LedgerEntry_Account FOREIGN KEY (GroupId, AccountId) REFERENCES Account(GroupId, Id),
     CONSTRAINT FK_LedgerEntry_GroupMerchant FOREIGN KEY (GroupId, MerchantId) REFERENCES GroupMerchant(GroupId, Id),
-    CONSTRAINT FK_LedgerEntry_Category FOREIGN KEY (GroupId, CategoryId) REFERENCES Category(GroupId, Id)
+    CONSTRAINT FK_LedgerEntry_Category FOREIGN KEY (GroupId, CategoryId) REFERENCES Category(GroupId, Id),
+    CONSTRAINT UQ_LedgerEntry_GroupId_IdempotencyKey UNIQUE (GroupId, IdempotencyKey)
 );
