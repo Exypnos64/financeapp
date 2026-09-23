@@ -26,7 +26,8 @@ export function validateTransaction(form: FormData): TransactionValidation {
 			amount: Number(form.get('amount')),
 			cashBack: cashBack && typeof cashBack === 'string' ? Number(cashBack) : null,
 			userDate: userDate,
-			notes: notes && typeof notes === 'string' ? notes : null
+			notes: notes && typeof notes === 'string' ? notes : null,
+			...(form.get('uuid') != null && { idempotencyKey: String(form.get('uuid') || '') })
 		}
 	};
 }

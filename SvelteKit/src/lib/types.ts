@@ -47,6 +47,7 @@ export type ValidatedTransaction = {
 	cashBack: number | null;
 	userDate: string;
 	notes: string | null;
+	idempotencyKey?: string;
 };
 export type TransactionValidation =
 	| { ok: true; body: ValidatedTransaction }

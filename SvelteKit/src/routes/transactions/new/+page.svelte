@@ -8,5 +8,6 @@
 	accounts={data.accounts}
 	categories={data.categories}
 	merchants={data.merchants}
+	uuid={data.uuid}
 	{form}
 />

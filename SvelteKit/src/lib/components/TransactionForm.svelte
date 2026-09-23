@@ -6,6 +6,7 @@
 		categories: Category[];
 		merchants: Merchant[];
 		transaction?: TransactionDto;
+		uuid?: ReturnType<typeof crypto.randomUUID>;
 		form: TransactionFormFailure | null;
 		action?: string;
 		showReadOnly?: boolean;
@@ -17,6 +18,7 @@
 		categories,
 		merchants,
 		transaction,
+		uuid,
 		form,
 		action = '',
 		showReadOnly = false,
@@ -43,6 +45,8 @@
 	let setDate = $state(String(form?.values?.datePicker ?? reduceDate(transaction?.userDate ?? '')));
 	// svelte-ignore state_referenced_locally
 	let notes = $state(String(form?.values?.notes ?? transaction?.notes ?? ''));
+	// svelte-ignore state_referenced_locally
+	let storedUuid = $state(form?.values?.uuid ?? uuid);
 
 	let categoryDropdown = $derived(categoryGroups(categories));
 	let tzOffsetMins = $derived(new Date(setDate).getTimezoneOffset());
@@ -125,6 +129,10 @@
 	<label for="notes">Notes:</label><br />
 	<textarea name="notes" id="notes" style="height: 75px; width: 200px" bind:value={notes}
 	></textarea><br /><br />
+
+	{#if uuid}
+		<input type="hidden" name="uuid" bind:value={storedUuid} />
+	{/if}
 
 	<button name="submit" type="submit">Submit</button>
 	{#if showDelete}
