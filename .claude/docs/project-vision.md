@@ -169,12 +169,16 @@ different presentation. Savings buckets should work under **all budgeting types 
   response serialization threw, so the client saw a 500 with a row already in `LedgerEntry`. Any client
   that retries on 5xx (or a user who clicks Submit twice) double-enters the transaction — and for a
   financial ledger a phantom duplicate is worse than a missing entry, because it silently corrupts
-  every balance and budget derived from it. No mitigation exists today. The eventual fix is a
-  client-supplied idempotency key on write endpoints (a `UNIQUE` constraint makes the retry a no-op
-  rather than a second row); a natural-key uniqueness rule is not viable, since two genuinely distinct
-  transactions can legitimately share account/merchant/amount/date. Deferred as a hardening concern —
-  but it must be settled **before** statement import lands, since a bulk import is exactly where a
-  partial-failure retry does the most damage.
+  every balance and budget derived from it. A natural-key uniqueness rule is not viable, since two
+  genuinely distinct transactions can legitimately share account/merchant/amount/date.
+  **Settled for `POST /transactions`** (2026-09-22): a client-supplied idempotency key, stored as
+  `LedgerEntry.IdempotencyKey` (`UNIQUEIDENTIFIER NOT NULL`, unique per group). A retry with the same
+  key and body returns the original row; the same key with a different body is a `409`. See
+  `api.md`. **Still open, and it must be answered by statement import itself:** where an imported
+  row's key comes from. A random key per line protects nothing against importing the same file
+  twice, so import wants a key *derived* from the source line — deterministic, so a re-import
+  collides with itself. Keys do **not** expire: they live on the row they protect, so there is no
+  side store to prune, and clearing one would reopen the duplicate hazard.
 - **Same-group foreign-key integrity for the remaining tables.** `LedgerEntry` and `Category`
   carry composite FKs that force their references to belong to the same group. The pattern could be
   extended further, but it's safe to defer: a group id is always derivable from the account, so

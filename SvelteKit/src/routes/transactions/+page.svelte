@@ -6,6 +6,7 @@
 </script>
 
 <div>
+	<a href={resolve('/transactions/new')}>New</a>
 	<table>
 		<thead>
 			<tr>

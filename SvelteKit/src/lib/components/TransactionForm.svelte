@@ -1,11 +1,13 @@
 <script lang="ts">
 	import type { Account, Category, Merchant, TransactionDto, TransactionFormFailure } from '$lib';
 	import { enhance } from '$app/forms';
+	import { resolve } from '$app/paths';
 	type Props = {
 		accounts: Account[];
 		categories: Category[];
 		merchants: Merchant[];
 		transaction?: TransactionDto;
+		uuid?: ReturnType<typeof crypto.randomUUID>;
 		form: TransactionFormFailure | null;
 		action?: string;
 		showReadOnly?: boolean;
@@ -17,6 +19,7 @@
 		categories,
 		merchants,
 		transaction,
+		uuid,
 		form,
 		action = '',
 		showReadOnly = false,
@@ -43,30 +46,15 @@
 	let setDate = $state(String(form?.values?.datePicker ?? reduceDate(transaction?.userDate ?? '')));
 	// svelte-ignore state_referenced_locally
 	let notes = $state(String(form?.values?.notes ?? transaction?.notes ?? ''));
+	// svelte-ignore state_referenced_locally
+	let storedUuid = $state(form?.values?.uuid ?? uuid);
 
 	let categoryDropdown = $derived(categoryGroups(categories));
-	let submitDate = $derived(transformDate(setDate));
+	let tzOffsetMins = $derived(new Date(setDate).getTimezoneOffset());
 
 	function categoryGroups(flatList: Category[]): Map<number, Category[]> {
 		const result = Map.groupBy(flatList, (c) => c.set.id);
 		return result;
-	}
-
-	function transformDate(date: string): string {
-		if (date === '') return '';
-		// console.log(`Transform before: ${date}`);
-
-		let offsetMin = new Date(date).getTimezoneOffset();
-		let offsetHr = Math.trunc(offsetMin / 60);
-		const sign = offsetMin > 0 ? '-' : '+';
-		offsetMin -= offsetHr * 60;
-
-		const hrStr = Math.abs(offsetHr).toString().padStart(2, '0');
-		const minStr = Math.abs(offsetMin).toString().padStart(2, '0');
-		// set seconds when date picker supports it
-		const newDate = date + `:00${sign}${hrStr}:${minStr}`;
-		// console.log(`Transform after:  ${newDate}`);
-		return newDate;
 	}
 
 	function reduceDate(date: string): string {
@@ -133,7 +121,7 @@
 
 	<label for="date">Date:</label>
 	<input required type="datetime-local" name="datePicker" bind:value={setDate} id="date" />
-	<input type="hidden" name="userDate" value={submitDate} /><br /><br />
+	<input type="hidden" name="userOffset" value={tzOffsetMins} /><br /><br />
 
 	<label for="cashBack">Cash Back:</label>
 	<input type="number" step="0.0001" name="cashBack" id="cashBack" bind:value={cashBack} /><br /><br
@@ -143,6 +131,11 @@
 	<textarea name="notes" id="notes" style="height: 75px; width: 200px" bind:value={notes}
 	></textarea><br /><br />
 
+	{#if uuid}
+		<input type="hidden" name="uuid" bind:value={storedUuid} />
+	{/if}
+
+	<a href={resolve('/transactions')}>Cancel</a>
 	<button name="submit" type="submit">Submit</button>
 	{#if showDelete}
 		<button name="delete" formaction="?/delete" formnovalidate>Delete</button>

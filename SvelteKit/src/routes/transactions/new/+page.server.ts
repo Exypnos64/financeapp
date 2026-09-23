@@ -10,8 +10,9 @@ export const load: PageServerLoad = async ({ fetch }) => {
 		api.getJson<Category[]>('/categories'),
 		api.getJson<Merchant[]>('/merchants')
 	]);
+	const uuid = crypto.randomUUID();
 
-	return { accounts, categories, merchants };
+	return { accounts, categories, merchants, uuid };
 };
 
 export const actions = {

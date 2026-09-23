@@ -1,9 +1,10 @@
 import { fail, redirect, type ActionFailure } from '@sveltejs/kit';
 import type { TransactionFormFailure, TransactionValidation } from '../types';
+import { transformDate } from '../dates';
 
 export function validateTransaction(form: FormData): TransactionValidation {
-	const userDate = form.get('userDate');
-	if (!userDate || typeof userDate !== 'string')
+	const pickedDate = form.get('datePicker');
+	if (!pickedDate || typeof pickedDate !== 'string')
 		return {
 			ok: false,
 			failure: fail(422, {
@@ -12,8 +13,10 @@ export function validateTransaction(form: FormData): TransactionValidation {
 			})
 		};
 
+	const userDate = transformDate(pickedDate, Number(form.get('userOffset')));
 	const cashBack = form.get('cashBack');
 	const notes = form.get('notes');
+
 	return {
 		ok: true,
 		body: {
@@ -23,7 +26,8 @@ export function validateTransaction(form: FormData): TransactionValidation {
 			amount: Number(form.get('amount')),
 			cashBack: cashBack && typeof cashBack === 'string' ? Number(cashBack) : null,
 			userDate: userDate,
-			notes: notes && typeof notes === 'string' ? notes : null
+			notes: notes && typeof notes === 'string' ? notes : null,
+			...(form.get('uuid') != null && { idempotencyKey: String(form.get('uuid') || '') })
 		}
 	};
 }

@@ -75,7 +75,8 @@ sole schema authority (never generate EF migrations)**; entity/context conventio
 one file per entity in `Api/Entities/`, nullability mirrors the schema, singular `DbSet`s,
 composite-key config, map `DbSet`s per slice, navigation properties, and DTOs/projections in
 `Api/Contracts/`); the `IGroupOwned` + `OwnedBy(groupId)` group-scoping chokepoint every query goes
-through; connection-string + User-Secrets handling and the `,`-vs-`;`
+through; **idempotent create** (a required client-supplied key, unique per group, lookup-then-catch-2627,
+same body → original row, different body → `409`); connection-string + User-Secrets handling and the `,`-vs-`;`
 and `TrustServerCertificate` gotchas; and NuGet audit/pin notes.
 
 ### `.claude/docs/frontend.md`
@@ -179,6 +180,10 @@ with a `.claude/docs/tool-references/<tool>-guide.md` and indexed here.
   membership, roles, or account master-ownership until auth lands — see `project-vision.md`.
 - **Sign convention: spending is negative, transfers in are positive.** Credit/loan accounts flip
   **cosmetically at the display layer only** — never in the API or the DB.
+- **Every create of a ledger row carries a client-supplied idempotency key** (`NOT NULL`, never a
+  server `DEFAULT` — a server-invented key is new on every retry and protects nothing). Mint it when
+  the form *loads*, not when it submits. Statement import must derive its key from the source line.
+  See `api.md` → Idempotent create.
 - **Never commit secrets** (connection strings, API keys, Plaid credentials) -- keep them out of
   version control; see `.gitignore`.
 - **Keep this file lean and current** -- push detail into `.claude/docs/`; update the index when
